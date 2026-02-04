@@ -1,0 +1,38 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Foundry
+out/
+cache/
+broadcast/
+
+# Node
+node_modules/
+.pnp/
+.pnp.js
+
+# Next.js
+.next/
+out/
+.vercel
+
+# Build
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Coverage
+coverage/
+lcov.info
+
+# Logs
+*.log
+npm-debug.log*

@@ -47,38 +47,72 @@ contract AgoraType is Ownable {
     // Errors
     //==============================================================================
 
+    /// @notice Thrown when attempting to settle an already settled competition
     error AlreadySettled();
+
+    /// @notice Thrown when a player attempts to sign up more than once
+    error AlreadySignedUp();
+
+    /// @notice Thrown when attempting to start a new competition while one is active
     error CompetitionActive();
+
+    /// @notice Thrown when an action requires an active competition but none is running
     error CompetitionNotActive();
+
+    /// @notice Thrown when attempting to settle before the competition end time
     error CompetitionNotEnded();
-    error InsufficientDeposit(address player, uint256 required, uint256 available);
+
+    /// @notice Thrown when attempting to settle with no registered players
     error NoPlayers();
+
+    /// @notice Thrown when a non-operator attempts an operator-only action
     error NotOperator();
+
+    /// @notice Thrown when submitting an attempt for a player who hasn't signed up
+    error NotSignedUp();
+
+    /// @notice Thrown when a zero address is provided where not allowed
     error ZeroAddress();
-    error ZeroAmount();
 
     //==============================================================================
     // Events
     //==============================================================================
 
+    /// @notice Emitted when a player submits a typing attempt
+    /// @param player The player's address
+    /// @param score The score achieved in this attempt
+    /// @param bestScore The player's best score (may be unchanged if this attempt was worse)
+    /// @param pot The current prize pot total
     event AttemptSubmitted(address indexed player, uint256 score, uint256 bestScore, uint256 pot);
+
+    /// @notice Emitted when a new competition is started
+    /// @param startTime The competition start timestamp
+    /// @param endTime The competition end timestamp
     event CompetitionStarted(uint256 startTime, uint256 endTime);
-    event Deposited(address indexed player, uint256 amount, uint256 newBalance);
+
+    /// @notice Emitted when the operator address is updated
+    /// @param newOperator The new operator address
     event OperatorUpdated(address indexed newOperator);
+
+    /// @notice Emitted when a competition is settled and the winner is paid
+    /// @param winner The winning player's address
+    /// @param prize The prize amount transferred to the winner
     event Settled(address indexed winner, uint256 prize);
-    event Withdrawn(address indexed player, uint256 amount, uint256 newBalance);
+
+    /// @notice Emitted when a player signs up for the competition
+    /// @param player The player's address
+    /// @param pot The new prize pot total after signup
+    event SignedUp(address indexed player, uint256 pot);
 
     //==============================================================================
     // ERC7201 Storage
     //==============================================================================
 
     /// @notice Player state packed into single storage slot
-    /// @param deposit Available balance for entry fees (uint128 = 16 bytes)
     /// @param bestScore Best score achieved, scaled by 100 (uint32 = 4 bytes)
-    /// @param hasPlayed Whether player has entered current competition (bool = 1 byte)
-    /// @dev Total: 21 bytes, fits in single 32-byte slot
+    /// @param hasPlayed Whether player has signed up for current competition (bool = 1 byte)
+    /// @dev Total: 5 bytes, fits in single 32-byte slot
     struct PlayerState {
-        uint128 deposit;
         uint32 bestScore;
         bool hasPlayed;
     }
@@ -185,15 +219,13 @@ contract AgoraType is Ownable {
         // Reset state for new competition
         startTime = block.timestamp;
         endTime = block.timestamp + DURATION;
-        pot = 0;
         settled = false;
 
         // Clear previous players' scores and tracking
         PlayerStorage storage _s = _getPlayerStorage();
         uint256 _playersLength = _s.players.length;
         for (uint256 i = 0; i < _playersLength; i++) {
-            _s.playerState[_s.players[i]].bestScore = 0;
-            _s.playerState[_s.players[i]].hasPlayed = false;
+            delete _s.playerState[_s.players[i]];
         }
         delete _s.players;
 
@@ -224,10 +256,11 @@ contract AgoraType is Ownable {
         uint256 _highestScore;
         uint256 _playersLength = _s.players.length;
         for (uint256 i = 0; i < _playersLength; i++) {
-            uint256 _score = _s.playerState[_s.players[i]].bestScore;
+            address _player = _s.players[i];
+            uint256 _score = _s.playerState[_player].bestScore;
             if (_score > _highestScore) {
                 _highestScore = _score;
-                _winner = _s.players[i];
+                _winner = _player;
             }
         }
 
@@ -243,36 +276,20 @@ contract AgoraType is Ownable {
     // Player Functions
     //==============================================================================
 
-    /// @notice The ```deposit``` function allows a player to deposit tokens for playing
-    /// @dev Requires prior token approval
-    /// @param _amount The amount of tokens to deposit
-    function deposit(
-        uint256 _amount
-    ) external {
-        if (_amount == 0) revert ZeroAmount();
+    /// @notice The ```signup``` function registers a player for the current competition
+    /// @dev Requires prior ERC20 approval. Charges ENTRY_FEE immediately.
+    function signup() external whenActive {
+        PlayerStorage storage _s = _getPlayerStorage();
+        PlayerState storage _state = _s.playerState[msg.sender];
 
-        token.safeTransferFrom(msg.sender, address(this), _amount);
-        PlayerState storage _state = _getPlayerStorage().playerState[msg.sender];
-        _state.deposit += uint128(_amount);
+        if (_state.hasPlayed) revert AlreadySignedUp();
 
-        emit Deposited(msg.sender, _amount, _state.deposit);
-    }
+        token.safeTransferFrom(msg.sender, address(this), ENTRY_FEE);
+        pot += ENTRY_FEE;
+        _state.hasPlayed = true;
+        _s.players.push(msg.sender);
 
-    /// @notice The ```withdraw``` function allows a player to withdraw their unused deposit
-    /// @param _amount The amount of tokens to withdraw
-    function withdraw(
-        uint256 _amount
-    ) external {
-        if (_amount == 0) revert ZeroAmount();
-
-        PlayerState storage _state = _getPlayerStorage().playerState[msg.sender];
-        uint128 _deposit = _state.deposit;
-        if (_deposit < _amount) revert InsufficientDeposit(msg.sender, _amount, _deposit);
-
-        _state.deposit = _deposit - uint128(_amount);
-        token.safeTransfer(msg.sender, _amount);
-
-        emit Withdrawn(msg.sender, _amount, _state.deposit);
+        emit SignedUp(msg.sender, pot);
     }
 
     //==============================================================================
@@ -280,7 +297,7 @@ contract AgoraType is Ownable {
     //==============================================================================
 
     /// @notice The ```submitAttempt``` function submits an attempt on behalf of a player
-    /// @dev Only callable by operator. Deducts entry fee from player's deposit.
+    /// @dev Only callable by operator. Player must have signed up first.
     /// @param _player The player's address
     /// @param _score The calculated score (WPM * accuracy, scaled by 100)
     function submitAttempt(
@@ -290,17 +307,8 @@ contract AgoraType is Ownable {
         PlayerStorage storage _s = _getPlayerStorage();
         PlayerState storage _state = _s.playerState[_player];
 
-        // Only charge entry fee on first attempt
-        if (!_state.hasPlayed) {
-            if (_state.deposit < ENTRY_FEE) revert InsufficientDeposit(_player, ENTRY_FEE, _state.deposit);
+        if (!_state.hasPlayed) revert NotSignedUp();
 
-            _state.deposit -= uint128(ENTRY_FEE);
-            pot += ENTRY_FEE;
-            _state.hasPlayed = true;
-            _s.players.push(_player);
-        }
-
-        // Update best score if improved (always, even on subsequent attempts)
         if (_score > _state.bestScore) _state.bestScore = uint32(_score);
 
         emit AttemptSubmitted(_player, _score, _state.bestScore, pot);
@@ -326,15 +334,6 @@ contract AgoraType is Ownable {
         return (startTime, endTime, pot, settled, _isActive, _getPlayerStorage().players.length);
     }
 
-    /// @notice The ```deposits``` function returns a player's deposit balance
-    /// @param _player The player's address
-    /// @return _deposit Player's current deposit balance
-    function deposits(
-        address _player
-    ) external view returns (uint256 _deposit) {
-        return _getPlayerStorage().playerState[_player].deposit;
-    }
-
     /// @notice The ```bestScore``` function returns a player's best score
     /// @param _player The player's address
     /// @return _score Player's best score in current competition
@@ -346,26 +345,22 @@ contract AgoraType is Ownable {
 
     /// @notice The ```getPlayerState``` function returns a player's current state
     /// @param _player The player's address
-    /// @return _deposit Player's current deposit balance
     /// @return _bestScore Player's best score in current competition
-    /// @return _hasPlayed Whether the player has played in current competition
+    /// @return _hasPlayed Whether the player has signed up for current competition
     function getPlayerState(
         address _player
-    ) external view returns (uint256 _deposit, uint256 _bestScore, bool _hasPlayed) {
+    ) external view returns (uint256 _bestScore, bool _hasPlayed) {
         PlayerState storage _state = _getPlayerStorage().playerState[_player];
-        return (_state.deposit, _state.bestScore, _state.hasPlayed);
+        return (_state.bestScore, _state.hasPlayed);
     }
 
     /// @notice The ```getLeaderboard``` function returns player addresses and scores
     /// @dev Returns unsorted data. Frontend should sort by score descending.
-    /// @param _limit Maximum number of players to return
     /// @return _players Array of player addresses
     /// @return _scores Array of corresponding best scores
-    function getLeaderboard(
-        uint256 _limit
-    ) external view returns (address[] memory _players, uint256[] memory _scores) {
+    function getLeaderboard() external view returns (address[] memory _players, uint256[] memory _scores) {
         PlayerStorage storage _s = _getPlayerStorage();
-        uint256 _count = _s.players.length < _limit ? _s.players.length : _limit;
+        uint256 _count = _s.players.length;
         _players = new address[](_count);
         _scores = new uint256[](_count);
 
@@ -373,7 +368,6 @@ contract AgoraType is Ownable {
             _players[i] = _s.players[i];
             _scores[i] = _s.playerState[_s.players[i]].bestScore;
         }
-        return (_players, _scores);
     }
 
     /// @notice The ```getPlayerCount``` function returns the total number of players

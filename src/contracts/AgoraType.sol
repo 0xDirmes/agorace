@@ -110,11 +110,11 @@ contract AgoraType is Ownable {
 
     /// @notice Player state packed into single storage slot
     /// @param bestScore Best score achieved, scaled by 100 (uint32 = 4 bytes)
-    /// @param hasPlayed Whether player has signed up for current competition (bool = 1 byte)
+    /// @param signedUp Whether player has signed up for current competition (bool = 1 byte)
     /// @dev Total: 5 bytes, fits in single 32-byte slot
     struct PlayerState {
         uint32 bestScore;
-        bool hasPlayed;
+        bool signedUp;
     }
 
     /// @notice Storage layout for player-related data
@@ -258,6 +258,7 @@ contract AgoraType is Ownable {
         for (uint256 i = 0; i < _playersLength; i++) {
             address _player = _s.players[i];
             uint256 _score = _s.playerState[_player].bestScore;
+            // NOTE: in case of tie, first to reach score wins
             if (_score > _highestScore) {
                 _highestScore = _score;
                 _winner = _player;
@@ -282,11 +283,11 @@ contract AgoraType is Ownable {
         PlayerStorage storage _s = _getPlayerStorage();
         PlayerState storage _state = _s.playerState[msg.sender];
 
-        if (_state.hasPlayed) revert AlreadySignedUp();
+        if (_state.signedUp) revert AlreadySignedUp();
 
         token.safeTransferFrom(msg.sender, address(this), ENTRY_FEE);
         pot += ENTRY_FEE;
-        _state.hasPlayed = true;
+        _state.signedUp = true;
         _s.players.push(msg.sender);
 
         emit SignedUp(msg.sender, pot);
@@ -307,7 +308,7 @@ contract AgoraType is Ownable {
         PlayerStorage storage _s = _getPlayerStorage();
         PlayerState storage _state = _s.playerState[_player];
 
-        if (!_state.hasPlayed) revert NotSignedUp();
+        if (!_state.signedUp) revert NotSignedUp();
 
         if (_score > _state.bestScore) _state.bestScore = uint32(_score);
 
@@ -351,7 +352,7 @@ contract AgoraType is Ownable {
         address _player
     ) external view returns (uint256 _bestScore, bool _hasPlayed) {
         PlayerState storage _state = _getPlayerStorage().playerState[_player];
-        return (_state.bestScore, _state.hasPlayed);
+        return (_state.bestScore, _state.signedUp);
     }
 
     /// @notice The ```getLeaderboard``` function returns player addresses and scores
@@ -382,7 +383,7 @@ contract AgoraType is Ownable {
     function isPlayer(
         address _player
     ) external view returns (bool _hasPlayed) {
-        return _getPlayerStorage().playerState[_player].hasPlayed;
+        return _getPlayerStorage().playerState[_player].signedUp;
     }
 
     /// @notice The ```players``` function returns a player address by index

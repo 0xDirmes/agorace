@@ -12,19 +12,6 @@ NC='\033[0m'
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 
-# Patterns to filter out (inherited OZ items + non-interface structs + type mismatches)
-FILTER_PATTERNS=(
-    "error OwnableInvalidOwner"
-    "error OwnableUnauthorizedAccount"
-    "error SafeERC20FailedOperation"
-    "event OwnershipTransferred"
-    "function owner()"
-    "function renounceOwnership()"
-    "function transferOwnership("
-    "struct ConstructorParams"
-    "function token()"
-)
-
 process_contract() {
     local contract_path=$1
 
@@ -59,16 +46,8 @@ process_contract() {
 
     # Generate with proper name and license
     cast interface -n "I${contract_name}" "$json_path" > "${interface_path}.tmp"
-
-    # Filter out inherited OZ errors/events/functions and non-interface structs
-    local filtered_content=$(cat "${interface_path}.tmp")
-    for pattern in "${FILTER_PATTERNS[@]}"; do
-        filtered_content=$(echo "$filtered_content" | grep -v "$pattern" || true)
-    done
-
-    # Write final interface
     echo "$license" > "$interface_path"
-    echo "$filtered_content" | tail -n +2 >> "$interface_path"
+    tail -n +2 "${interface_path}.tmp" >> "$interface_path"
     rm -f "${interface_path}.tmp"
 
     echo -e "${GREEN}✓ Generated ${interface_path}${NC}"

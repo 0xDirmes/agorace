@@ -22,7 +22,7 @@ Phase 1 (MVP) implementation checklist. Check items off as completed.
   - `TestWithdraw.t.sol`
   - `TestSubmitAttempt.t.sol`
   - `TestSettle.t.sol`
-- [ ] Deploy contracts to Base Sepolia
+- [ ] Deploy contracts to Monad Testnet
 
 ## Frontend Setup (Next.js)
 
@@ -48,7 +48,7 @@ Phase 1 (MVP) implementation checklist. Check items off as completed.
 
 - [ ] Wire up full user flow (connect → deposit → play → see results)
 - [ ] Write settlement script for manual triggering
-- [ ] Test end-to-end on Base Sepolia
+- [ ] Test end-to-end on Monad Testnet
 - [ ] Deploy frontend to Vercel
 
 ---
@@ -66,6 +66,8 @@ Phase 1 (MVP) implementation checklist. Check items off as completed.
 ## References
 
 - **Design Doc**: `./DESIGN.md`
+- **Setup Guide**: `./SETUP.md`
+- **Style Guide**: `./STYLE_GUIDE.md`
 - **Solidity Template**: https://github.com/amphora-atlas/solidity-template
 - **Style Reference**: https://github.com/amphora-atlas/agora-dollar-evm-dev
-- **Porto Docs**: https://porto.sh/
+- **Porto Repo**: https://github.com/ithacaxyz/porto (clone to lib/ for reference)

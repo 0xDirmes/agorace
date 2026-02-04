@@ -110,7 +110,7 @@ A week-long typing tournament where players deposit AUSD and pay 1 AUSD per atte
 | Web3 | wagmi v2 + viem | Porto-compatible, typed, modern |
 | Contracts | Foundry | Fast tests, modern tooling |
 | Styling | Tailwind CSS | Rapid iteration |
-| Chain | Base Sepolia (testnet) → Base (mainnet) | Low fees, good ecosystem |
+| Chain | Monad Testnet | Fast, EVM-compatible |
 | Hosting | Vercel | Easy deployment, edge functions |
 
 **No database required** - all state lives on-chain.
@@ -426,16 +426,14 @@ and proper finger placement are key to improving your typing skills.
 
 ## Environment Variables
 
+See `.env.example` and `SETUP.md` for full configuration.
+
 ```bash
-# .env.local
-
-# Public (exposed to browser)
-NEXT_PUBLIC_CONTRACT_ADDRESS=0x...
-NEXT_PUBLIC_CHAIN_ID=84532  # Base Sepolia
-NEXT_PUBLIC_TOKEN_ADDRESS=0x...  # AUSD (or mock token)
-
-# Server-side only
-OPERATOR_PRIVATE_KEY=0x...  # For sponsoring attempt submissions
+# Key variables
+RPC_ENDPOINT=https://monad-testnet.g.alchemy.com/v2/<API_KEY>
+SERVER_ADDRESS=0xb07eFD484Baf4E53767da2C00dd31D61840496a7
+SERVER_PK=<private_key>
+NEXT_PUBLIC_CHAIN_ID=10143  # Monad Testnet
 ```
 
 ## Gas Costs (Estimated for Base)

@@ -4,17 +4,18 @@ Weekly typing competition with on-chain prize pool. Fully on-chain architecture 
 
 ## Overview
 
-A week-long typing tournament where players deposit AUSD and pay 1 AUSD per attempt. The player with the highest score (WPM × accuracy%) at the end of the week wins the entire pot. All attempts are recorded on-chain for public verifiability.
+A week-long typing tournament where players sign up with a one-time entry fee for unlimited attempts. The player with the highest score (WPM × accuracy%) at the end of the week wins the entire pot. All attempts are recorded on-chain for public verifiability.
 
 ## Game Rules
 
 | Parameter | Value |
 |-----------|-------|
-| Entry fee | 1 AUSD per attempt (deducted from deposit) |
+| Entry fee | 10 AUSD one-time signup (unlimited attempts) |
 | Duration | 7 days (hardcoded) |
 | Text | Same passage for entire competition |
 | Scoring | `WPM × accuracy%` (e.g., 80 WPM at 95% = 76.0) |
 | Winner | Single winner, takes 100% of pot |
+| Ties | First player to reach the highest score wins |
 | Settlement | Owner-triggered at competition end |
 
 ## User Flow
@@ -22,14 +23,13 @@ A week-long typing tournament where players deposit AUSD and pay 1 AUSD per atte
 ```
 1. Connect wallet via Porto (passkey-based, no extension needed)
 2. View leaderboard + current pot size + time remaining
-3. Deposit AUSD (e.g., 10 AUSD for 10 attempts)
+3. Sign up with 10 AUSD (one-time fee, unlimited attempts)
 4. Click "Play" → typing test starts immediately (no wallet popup)
 5. Type the passage as fast and accurately as possible
 6. Score calculated → server submits attempt on-chain (sponsored)
 7. See results: WPM, accuracy, final score, leaderboard position
-8. Play again instantly (deposit auto-deducted)
-9. At week end: owner settles, winner receives pot
-10. Withdraw any remaining deposit balance
+8. Play again instantly (no additional fee)
+9. At week end: owner settles, winner receives entire pot
 ```
 
 ## Architecture
@@ -43,9 +43,9 @@ A week-long typing tournament where players deposit AUSD and pay 1 AUSD per atte
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐   │
 │  │  Typing UI   │  │  Leaderboard │  │  Porto Wallet    │   │
 │  │  - Passage   │  │  - Rankings  │  │  - Connect       │   │
-│  │  - Input     │  │  - Your best │  │  - Deposit AUSD  │   │
-│  │  - Live WPM  │  │  - Pot size  │  │  - Balance       │   │
-│  │  - Accuracy  │  │  - Time left │  │  - Withdraw      │   │
+│  │  - Input     │  │  - Your best │  │  - Sign Up       │   │
+│  │  - Live WPM  │  │  - Pot size  │  │  - Status        │   │
+│  │  - Accuracy  │  │  - Time left │  │                  │   │
 │  └──────────────┘  └──────────────┘  └──────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -71,22 +71,22 @@ A week-long typing tournament where players deposit AUSD and pay 1 AUSD per atte
 │                    Smart Contract (On-Chain)                 │
 │                                                              │
 │  State:                                                      │
-│    - deposits: mapping(address => uint256)                   │
-│    - bestScore: mapping(address => uint256)                  │
+│    - playerState: mapping(address => PlayerState)            │
+│        - bestScore: uint32                                   │
+│        - signedUp: bool                                      │
 │    - players: address[] (for settlement iteration)           │
 │    - pot: uint256                                            │
 │    - startTime, endTime, settled                             │
 │                                                              │
 │  Functions:                                                  │
-│    - deposit(amount) → user deposits AUSD                    │
-│    - withdraw(amount) → user withdraws unused balance        │
+│    - signup() → user pays 10 AUSD, gets unlimited attempts   │
 │    - submitAttempt(player, score) → operator submits score   │
 │    - settle() → owner pays winner                            │
-│    - getLeaderboard() → returns top players + scores         │
+│    - getLeaderboard() → returns all players + scores         │
 │                                                              │
 │  Events:                                                     │
-│    - Deposited(player, amount, newBalance)                   │
-│    - AttemptSubmitted(player, score, newBestScore, pot)      │
+│    - SignedUp(player, pot)                                   │
+│    - AttemptSubmitted(player, score, bestScore, pot)         │
 │    - Settled(winner, prize)                                  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -119,17 +119,22 @@ A week-long typing tournament where players deposit AUSD and pay 1 AUSD per atte
 
 ### AgoraType.sol
 
+The contract uses a simplified signup model where players pay a one-time entry fee for unlimited attempts.
+
 ```solidity
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity 0.8.28;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract AgoraType is Ownable {
+    using SafeERC20 for IERC20;
+
     IERC20 public immutable token;
 
-    uint256 public constant ENTRY_FEE = 1e18;  // 1 AUSD (18 decimals)
+    uint256 public constant ENTRY_FEE = 10e6;  // 10 AUSD (6 decimals)
     uint256 public constant DURATION = 7 days;
 
     // Competition state
@@ -137,40 +142,40 @@ contract AgoraType is Ownable {
     uint256 public endTime;
     uint256 public pot;
     bool public settled;
-
-    // Player state
-    mapping(address => uint256) public deposits;
-    mapping(address => uint256) public bestScore;
-    address[] public players;
-    mapping(address => bool) private isPlayer;
-
-    // Operator can submit attempts on behalf of players
     address public operator;
+
+    // Player state (packed into single storage slot)
+    struct PlayerState {
+        uint32 bestScore;
+        bool signedUp;
+    }
+    mapping(address => PlayerState) public playerState;
+    address[] public players;
 
     // Events
     event CompetitionStarted(uint256 startTime, uint256 endTime);
-    event Deposited(address indexed player, uint256 amount, uint256 newBalance);
-    event Withdrawn(address indexed player, uint256 amount, uint256 newBalance);
-    event AttemptSubmitted(
-        address indexed player,
-        uint256 score,
-        uint256 bestScore,
-        uint256 pot
-    );
+    event SignedUp(address indexed player, uint256 pot);
+    event AttemptSubmitted(address indexed player, uint256 score, uint256 bestScore, uint256 pot);
     event Settled(address indexed winner, uint256 prize);
 
+    // Errors
+    error AlreadySettled();
+    error AlreadySignedUp();
+    error CompetitionActive();
+    error CompetitionNotActive();
+    error CompetitionNotEnded();
+    error NoPlayers();
+    error NotOperator();
+    error NotSignedUp();
+
     modifier onlyOperator() {
-        require(msg.sender == operator || msg.sender == owner(), "Not operator");
+        if (msg.sender != operator && msg.sender != owner()) revert NotOperator();
         _;
     }
 
     modifier whenActive() {
-        require(
-            block.timestamp >= startTime &&
-            block.timestamp < endTime &&
-            !settled,
-            "Competition not active"
-        );
+        if (block.timestamp < startTime || block.timestamp >= endTime || settled)
+            revert CompetitionNotActive();
         _;
     }
 
@@ -179,42 +184,63 @@ contract AgoraType is Ownable {
         operator = _operator;
     }
 
+    // ============ Player Functions ============
+
+    /// @notice Sign up for the competition (one-time fee, unlimited attempts)
+    function signup() external whenActive {
+        PlayerState storage state = playerState[msg.sender];
+        if (state.signedUp) revert AlreadySignedUp();
+
+        token.safeTransferFrom(msg.sender, address(this), ENTRY_FEE);
+        pot += ENTRY_FEE;
+        state.signedUp = true;
+        players.push(msg.sender);
+
+        emit SignedUp(msg.sender, pot);
+    }
+
+    // ============ Operator Functions ============
+
+    /// @notice Submit an attempt on behalf of a player (server-sponsored)
+    function submitAttempt(address player, uint256 score) external onlyOperator whenActive {
+        PlayerState storage state = playerState[player];
+        if (!state.signedUp) revert NotSignedUp();
+
+        if (score > state.bestScore) state.bestScore = uint32(score);
+
+        emit AttemptSubmitted(player, score, state.bestScore, pot);
+    }
+
     // ============ Admin Functions ============
 
     function startCompetition() external onlyOwner {
-        require(startTime == 0 || settled, "Competition active");
+        if (startTime != 0 && !settled) revert CompetitionActive();
 
-        // Reset state for new competition
         startTime = block.timestamp;
         endTime = block.timestamp + DURATION;
-        pot = 0;
         settled = false;
 
-        // Clear previous players (gas intensive, consider alternatives for prod)
+        // Clear previous players
         for (uint i = 0; i < players.length; i++) {
-            bestScore[players[i]] = 0;
-            isPlayer[players[i]] = false;
+            delete playerState[players[i]];
         }
         delete players;
 
         emit CompetitionStarted(startTime, endTime);
     }
 
-    function setOperator(address _operator) external onlyOwner {
-        operator = _operator;
-    }
-
     function settle() external onlyOwner {
-        require(block.timestamp >= endTime, "Competition not ended");
-        require(!settled, "Already settled");
-        require(players.length > 0, "No players");
+        if (block.timestamp < endTime) revert CompetitionNotEnded();
+        if (settled) revert AlreadySettled();
+        if (players.length == 0) revert NoPlayers();
 
-        // Find winner (highest score)
+        // Find winner (first to reach highest score wins ties)
         address winner;
         uint256 highestScore;
         for (uint i = 0; i < players.length; i++) {
-            if (bestScore[players[i]] > highestScore) {
-                highestScore = bestScore[players[i]];
+            uint256 score = playerState[players[i]].bestScore;
+            if (score > highestScore) {
+                highestScore = score;
                 winner = players[i];
             }
         }
@@ -223,95 +249,20 @@ contract AgoraType is Ownable {
         uint256 prize = pot;
         pot = 0;
 
-        require(token.transfer(winner, prize), "Transfer failed");
+        token.safeTransfer(winner, prize);
         emit Settled(winner, prize);
-    }
-
-    // ============ Player Functions ============
-
-    function deposit(uint256 amount) external {
-        require(amount > 0, "Amount must be > 0");
-        require(token.transferFrom(msg.sender, address(this), amount), "Transfer failed");
-        deposits[msg.sender] += amount;
-        emit Deposited(msg.sender, amount, deposits[msg.sender]);
-    }
-
-    function withdraw(uint256 amount) external {
-        require(deposits[msg.sender] >= amount, "Insufficient balance");
-        deposits[msg.sender] -= amount;
-        require(token.transfer(msg.sender, amount), "Transfer failed");
-        emit Withdrawn(msg.sender, amount, deposits[msg.sender]);
-    }
-
-    // ============ Operator Functions ============
-
-    /// @notice Submit an attempt on behalf of a player (server-sponsored)
-    /// @param player The player's address
-    /// @param score The calculated score (WPM * accuracy, scaled by 100)
-    function submitAttempt(address player, uint256 score) external onlyOperator whenActive {
-        require(deposits[player] >= ENTRY_FEE, "Insufficient deposit");
-
-        // Deduct entry fee and add to pot
-        deposits[player] -= ENTRY_FEE;
-        pot += ENTRY_FEE;
-
-        // Track player if first attempt
-        if (!isPlayer[player]) {
-            isPlayer[player] = true;
-            players.push(player);
-        }
-
-        // Update best score if improved
-        if (score > bestScore[player]) {
-            bestScore[player] = score;
-        }
-
-        emit AttemptSubmitted(player, score, bestScore[player], pot);
     }
 
     // ============ View Functions ============
 
-    function getState() external view returns (
-        uint256 _startTime,
-        uint256 _endTime,
-        uint256 _pot,
-        bool _settled,
-        bool _active,
-        uint256 _playerCount
-    ) {
-        bool active = block.timestamp >= startTime &&
-                      block.timestamp < endTime &&
-                      !settled;
-        return (startTime, endTime, pot, settled, active, players.length);
-    }
-
-    function getPlayerState(address player) external view returns (
-        uint256 _deposit,
-        uint256 _bestScore,
-        bool _hasPlayed
-    ) {
-        return (deposits[player], bestScore[player], isPlayer[player]);
-    }
-
-    function getLeaderboard(uint256 limit) external view returns (
-        address[] memory _players,
-        uint256[] memory _scores
-    ) {
-        uint256 count = players.length < limit ? players.length : limit;
-        _players = new address[](count);
-        _scores = new uint256[](count);
-
-        // Simple copy (not sorted - frontend should sort)
-        // For production, consider an off-chain indexer
-        for (uint i = 0; i < count; i++) {
+    function getLeaderboard() external view returns (address[] memory, uint256[] memory) {
+        address[] memory _players = new address[](players.length);
+        uint256[] memory _scores = new uint256[](players.length);
+        for (uint i = 0; i < players.length; i++) {
             _players[i] = players[i];
-            _scores[i] = bestScore[players[i]];
+            _scores[i] = playerState[players[i]].bestScore;
         }
         return (_players, _scores);
-    }
-
-    function getPlayerCount() external view returns (uint256) {
-        return players.length;
     }
 }
 ```
@@ -373,8 +324,8 @@ function calculateScore(
 ### UI States
 
 1. **Not Connected** - Show Porto "Connect" button
-2. **Connected, No Deposit** - Show "Deposit AUSD to Play"
-3. **Connected, Has Deposit, Active Competition** - Show "Play" button
+2. **Connected, Not Signed Up** - Show "Sign Up (10 AUSD)" button
+3. **Connected, Signed Up, Active Competition** - Show "Play" button
 4. **Playing** - Show typing interface with live WPM/accuracy
 5. **Submitting** - Show "Recording score..." (server submitting tx)
 6. **Completed** - Show results, leaderboard position, "Play Again" button
@@ -383,14 +334,16 @@ function calculateScore(
 ## Implementation Phases
 
 ### Phase 1: MVP
-- [ ] Foundry project setup
-- [ ] Deploy AgoraType contract to Base Sepolia
-- [ ] Mock AUSD token for testnet
+- [x] Foundry project setup
+- [x] AgoraType contract with signup model
+- [x] Mock AUSD token for testnet
+- [x] Comprehensive test suite
+- [ ] Deploy to testnet
 - [ ] Next.js app scaffold
 - [ ] Porto integration for wallet connection
 - [ ] Basic typing UI (passage display, input, timer)
 - [ ] Score calculation
-- [ ] Deposit/withdraw flow
+- [ ] Signup flow (approve + signup)
 - [ ] Server endpoint to submit attempts (sponsored tx)
 - [ ] Basic leaderboard (read from contract)
 - [ ] Manual settlement via script
@@ -440,15 +393,15 @@ NEXT_PUBLIC_CHAIN_ID=10143  # Monad Testnet
 
 | Operation | Gas | Cost (at 0.01 gwei) |
 |-----------|-----|---------------------|
-| deposit() | ~50k | ~$0.001 |
-| submitAttempt() | ~80k | ~$0.002 |
+| signup() | ~80k | ~$0.002 |
+| submitAttempt() | ~50k | ~$0.001 |
 | settle() | ~100k + 20k/player | ~$0.01-0.05 |
 
 **Operator cost per competition:**
-- 100 attempts = ~$0.20 in gas
-- 1000 attempts = ~$2.00 in gas
+- 100 attempts = ~$0.10 in gas (submitAttempt only, signup paid by user)
+- 1000 attempts = ~$1.00 in gas
 
-Acceptable for a side project. Consider adding a small fee for sustainability if it scales.
+Acceptable for a side project. The one-time signup model reduces operator costs since users pay their own signup gas.
 
 ## Future Considerations
 

@@ -17,7 +17,6 @@ contract BaseTest is Test, VmHelper {
 
     uint256 public constant ENTRY_FEE = 10e6; // Match contract: one-time entry fee
     uint256 public constant DURATION = 7 days;
-    uint256 public constant DEFAULT_DEPOSIT = 10e6; // Exactly one entry
 
     //==============================================================================
     // Contract Instances
@@ -55,17 +54,15 @@ contract BaseTest is Test, VmHelper {
     // Helper Functions
     //==============================================================================
 
-    /// @notice Mints and deposits tokens for a player
+    /// @notice Mints tokens and signs up a player for the competition
     /// @param _player The player address
-    /// @param _amount The amount to deposit
-    function _depositAs(
-        address _player,
-        uint256 _amount
+    function _signupAs(
+        address _player
     ) internal {
-        token.mint(_player, _amount);
+        token.mint(_player, ENTRY_FEE);
         vm.startPrank(_player);
-        token.approve(address(agoraType), _amount);
-        agoraType.deposit(_amount);
+        token.approve(address(agoraType), ENTRY_FEE);
+        agoraType.signup();
         vm.stopPrank();
     }
 

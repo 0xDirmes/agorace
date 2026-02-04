@@ -1,0 +1,67 @@
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config
+
+[profile.default]
+# The source directory
+src = 'src/contracts'
+# the test directoy
+test = 'src/test'
+# The artifact directory
+out = 'out'
+# The script directory
+script = "src/script"
+# A list of paths to look for libraries in
+libs = ["node_modules", "lib"]
+# Enables or disables the optimizer
+optimizer = false
+# The number of optimizer runs
+optimizer_runs = 100_000_000
+# use the via-ir compiler flag
+via_ir = false
+# include metadata hash in bytecode
+bytecode_hash = "none"
+# Whether to append the metadata hash to the bytecode
+cbor_metadata = false
+ignored_error_codes = []
+evm_version = "cancun"
+solc_version = "0.8.28"
+
+remappings = [
+  "contracts/=src/contracts/",
+  "interfaces/=src/contracts/interfaces/",
+  "script/=src/script/",
+  "forge-std/=node_modules/forge-std/src/",
+  "ds-test/=node_modules/ds-test/src/",
+  "agora-std/=lib/agora-standard-solidity/src/",
+  "@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/"
+]
+
+[rpc_endpoints]
+monad_testnet = "${RPC_ENDPOINT}"
+
+[fmt]
+single_line_statement_blocks = "single"
+multiline_func_header = "params_first"
+line_length = 120
+tab_width = 4
+bracket_spacing = true
+int_types = "long"
+number_underscore = "thousands"
+sort_imports = true
+contract_new_lines = true
+override_spacing = false
+
+[profile.test]
+src = "_"
+script = "_"
+optimizer = false
+build_info = false
+verbosity = 3
+via_ir = false
+# Ignore code-size-too-large errors in tests
+ignored_error_codes = [5574]
+# Whether or not to enable `vm.ffi`
+ffi = true
+
+[fuzz]
+# Amount of runs per fuzz test
+runs = 256

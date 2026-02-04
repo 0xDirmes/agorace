@@ -7,6 +7,7 @@
 out/
 cache/
 broadcast/
+soljson-latest.js
 
 # Node
 node_modules/

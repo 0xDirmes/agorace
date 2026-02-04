@@ -27,8 +27,8 @@ contract TestSettle is BaseTest {
 
     function test_CanSettle() public {
         // Setup: alice and bob play, bob wins
-        _depositAs(alice, DEFAULT_DEPOSIT);
-        _depositAs(bob, DEFAULT_DEPOSIT);
+        _signupAs(alice);
+        _signupAs(bob);
 
         _submitAttemptAs(alice, 7000);
         _submitAttemptAs(bob, 8000); // Bob has higher score
@@ -50,7 +50,7 @@ contract TestSettle is BaseTest {
 
     function test_SettleWithSinglePlayer() public {
         // Setup: only alice plays
-        _depositAs(alice, DEFAULT_DEPOSIT);
+        _signupAs(alice);
         _submitAttemptAs(alice, 7000);
 
         uint256 _expectedPrize = ENTRY_FEE;
@@ -69,8 +69,8 @@ contract TestSettle is BaseTest {
 
     function test_SettleWithTiedScores() public {
         // Setup: alice and bob tie, first player (alice) wins
-        _depositAs(alice, DEFAULT_DEPOSIT);
-        _depositAs(bob, DEFAULT_DEPOSIT);
+        _signupAs(alice);
+        _signupAs(bob);
 
         _submitAttemptAs(alice, 7500);
         _submitAttemptAs(bob, 7500);
@@ -86,9 +86,9 @@ contract TestSettle is BaseTest {
 
     function test_SettleWithManyPlayers() public {
         // Setup: multiple players, charlie wins
-        _depositAs(alice, DEFAULT_DEPOSIT);
-        _depositAs(bob, DEFAULT_DEPOSIT);
-        _depositAs(charlie, DEFAULT_DEPOSIT);
+        _signupAs(alice);
+        _signupAs(bob);
+        _signupAs(charlie);
 
         _submitAttemptAs(alice, 7000);
         _submitAttemptAs(bob, 8000);
@@ -103,7 +103,7 @@ contract TestSettle is BaseTest {
     }
 
     function test_EmitsSettledEvent() public {
-        _depositAs(alice, DEFAULT_DEPOSIT);
+        _signupAs(alice);
         _submitAttemptAs(alice, 7000);
 
         uint256 _expectedPrize = ENTRY_FEE;
@@ -116,37 +116,12 @@ contract TestSettle is BaseTest {
         _settle();
     }
 
-    function test_PlayersCanWithdrawAfterSettle() public {
-        // Alice deposits 20, plays 1 attempt (10 left after entry fee)
-        uint256 _largeDeposit = 20e6;
-        _depositAs(alice, _largeDeposit);
-        _submitAttemptAs(alice, 7000);
-
-        uint256 _remainingDeposit = _largeDeposit - ENTRY_FEE;
-        assertEq({
-            err: "/// GIVEN: alice has remaining deposit", left: _remainingDeposit, right: agoraType.deposits(alice)
-        });
-
-        _warpToCompetitionEnd();
-        _settle();
-
-        // Alice can still withdraw her remaining deposit
-        vm.prank(alice);
-        agoraType.withdraw(_remainingDeposit);
-
-        // Alice should have: prize (10 AUSD) + remaining deposit (10 AUSD)
-        uint256 _expectedBalance = ENTRY_FEE + _remainingDeposit;
-        assertEq({
-            err: "/// THEN: alice can withdraw remaining", left: _expectedBalance, right: token.balanceOf(alice)
-        });
-    }
-
     //==============================================================================
     // Revert Cases
     //==============================================================================
 
     function test_RevertWhen_CompetitionNotEnded() public {
-        _depositAs(alice, DEFAULT_DEPOSIT);
+        _signupAs(alice);
         _submitAttemptAs(alice, 7000);
 
         /// WHEN: trying to settle before competition ends
@@ -156,7 +131,7 @@ contract TestSettle is BaseTest {
     }
 
     function test_RevertWhen_AlreadySettled() public {
-        _depositAs(alice, DEFAULT_DEPOSIT);
+        _signupAs(alice);
         _submitAttemptAs(alice, 7000);
 
         _warpToCompetitionEnd();
@@ -179,7 +154,7 @@ contract TestSettle is BaseTest {
     }
 
     function test_RevertWhen_NotOwner() public {
-        _depositAs(alice, DEFAULT_DEPOSIT);
+        _signupAs(alice);
         _submitAttemptAs(alice, 7000);
 
         _warpToCompetitionEnd();

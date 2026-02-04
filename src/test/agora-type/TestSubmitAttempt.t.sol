@@ -27,17 +27,14 @@ contract TestSubmitAttempt is BaseTest {
         uint256 _score = 7650; // 76.50 WPM * accuracy
 
         // Setup
-        _depositAs(alice, DEFAULT_DEPOSIT);
+        _signupAs(alice);
 
-        assertEq({ err: "/// GIVEN: alice has a deposit", left: DEFAULT_DEPOSIT, right: agoraType.deposits(alice) });
-        assertEq({ err: "/// GIVEN: pot is empty", left: 0, right: agoraType.pot() });
+        assertEq({ err: "/// GIVEN: pot has entry fee", left: ENTRY_FEE, right: agoraType.pot() });
 
         // Action
         _submitAttemptAs(alice, _score);
 
-        // Assertions (one-time fee: deposit goes to 0)
-        assertEq({ err: "/// THEN: alice's deposit reduced by entry fee", left: 0, right: agoraType.deposits(alice) });
-        assertEq({ err: "/// THEN: pot increased by entry fee", left: ENTRY_FEE, right: agoraType.pot() });
+        // Assertions
         assertEq({ err: "/// THEN: alice's best score is recorded", left: _score, right: agoraType.bestScore(alice) });
         assertTrue(agoraType.isPlayer(alice), "/// THEN: alice is marked as player");
     }
@@ -47,7 +44,7 @@ contract TestSubmitAttempt is BaseTest {
         uint256 _secondScore = 8000;
         uint256 _thirdScore = 7500;
 
-        _depositAs(alice, DEFAULT_DEPOSIT);
+        _signupAs(alice);
 
         // First attempt
         _submitAttemptAs(alice, _firstScore);
@@ -71,43 +68,38 @@ contract TestSubmitAttempt is BaseTest {
     }
 
     function test_SubmitAttempt_TracksPlayerOnce() public {
-        _depositAs(alice, DEFAULT_DEPOSIT);
+        _signupAs(alice);
 
-        // First attempt - pays entry fee
+        // First attempt
         _submitAttemptAs(alice, 7000);
         assertEq({ err: "/// GIVEN: player count is 1", left: 1, right: agoraType.getPlayerCount() });
-        assertEq({ err: "/// THEN: deposit is 0 after entry fee", left: 0, right: agoraType.deposits(alice) });
 
-        // Second attempt - free (already paid)
+        // Second attempt - still same player count
         _submitAttemptAs(alice, 8000);
         assertEq({ err: "/// THEN: player count still 1", left: 1, right: agoraType.getPlayerCount() });
-        assertEq({ err: "/// THEN: deposit still 0 (no additional fee)", left: 0, right: agoraType.deposits(alice) });
     }
 
-    function test_SecondAttemptIsFree() public {
-        _depositAs(alice, DEFAULT_DEPOSIT);
+    function test_SubsequentAttemptsAreFree() public {
+        _signupAs(alice);
 
-        // First attempt - pays entry fee
+        // First attempt
         _submitAttemptAs(alice, 7000);
-        assertEq({ err: "/// GIVEN: deposit depleted after first attempt", left: 0, right: agoraType.deposits(alice) });
         assertEq({ err: "/// GIVEN: pot has entry fee", left: ENTRY_FEE, right: agoraType.pot() });
 
-        // Second attempt - free
+        // Second attempt - pot unchanged
         _submitAttemptAs(alice, 7500);
-        assertEq({ err: "/// THEN: deposit unchanged (no fee)", left: 0, right: agoraType.deposits(alice) });
         assertEq({ err: "/// THEN: pot unchanged (no additional fee)", left: ENTRY_FEE, right: agoraType.pot() });
         assertEq({ err: "/// THEN: best score updated", left: 7500, right: agoraType.bestScore(alice) });
 
         // Third attempt - still free
         _submitAttemptAs(alice, 8000);
-        assertEq({ err: "/// THEN: deposit still 0", left: 0, right: agoraType.deposits(alice) });
         assertEq({ err: "/// THEN: pot still same (one-time fee)", left: ENTRY_FEE, right: agoraType.pot() });
         assertEq({ err: "/// THEN: best score updated again", left: 8000, right: agoraType.bestScore(alice) });
     }
 
     function test_SubmitAttempt_MultiplePlayers() public {
-        _depositAs(alice, DEFAULT_DEPOSIT);
-        _depositAs(bob, DEFAULT_DEPOSIT);
+        _signupAs(alice);
+        _signupAs(bob);
 
         _submitAttemptAs(alice, 7000);
         _submitAttemptAs(bob, 8000);
@@ -119,7 +111,7 @@ contract TestSubmitAttempt is BaseTest {
     function test_EmitsAttemptSubmittedEvent() public {
         uint256 _score = 7650;
 
-        _depositAs(alice, DEFAULT_DEPOSIT);
+        _signupAs(alice);
 
         vm.expectEmit(true, false, false, true);
         emit IAgoraType.AttemptSubmitted(alice, _score, _score, ENTRY_FEE);
@@ -128,7 +120,7 @@ contract TestSubmitAttempt is BaseTest {
     }
 
     function test_OwnerCanAlsoSubmitAttempts() public {
-        _depositAs(alice, DEFAULT_DEPOSIT);
+        _signupAs(alice);
 
         // Owner should also be able to submit attempts
         vm.prank(ownerAddress);
@@ -142,7 +134,7 @@ contract TestSubmitAttempt is BaseTest {
     //==============================================================================
 
     function test_RevertWhen_NotOperator() public {
-        _depositAs(alice, DEFAULT_DEPOSIT);
+        _signupAs(alice);
 
         /// WHEN: non-operator tries to submit
         vm.prank(alice);
@@ -153,7 +145,6 @@ contract TestSubmitAttempt is BaseTest {
     function test_RevertWhen_CompetitionNotStarted() public {
         // New setup without starting competition
         _defaultSetup();
-        _depositAs(alice, DEFAULT_DEPOSIT);
 
         /// WHEN: trying to submit before competition
         vm.prank(operatorAddress);
@@ -162,7 +153,7 @@ contract TestSubmitAttempt is BaseTest {
     }
 
     function test_RevertWhen_CompetitionEnded() public {
-        _depositAs(alice, DEFAULT_DEPOSIT);
+        _signupAs(alice);
 
         // Warp past competition end
         _warpToCompetitionEnd();
@@ -173,25 +164,13 @@ contract TestSubmitAttempt is BaseTest {
         agoraType.submitAttempt(alice, 7000);
     }
 
-    function test_RevertWhen_InsufficientDeposit() public {
-        // Alice has no deposit
-        assertEq({ err: "/// GIVEN: alice has no deposit", left: 0, right: agoraType.deposits(alice) });
+    function test_RevertWhen_NotSignedUp() public {
+        // Alice has not signed up
+        assertFalse(agoraType.isPlayer(alice), "/// GIVEN: alice has not signed up");
 
-        /// WHEN: operator tries to submit for alice
+        /// WHEN: operator tries to submit for alice who hasn't signed up
         vm.prank(operatorAddress);
-        vm.expectRevert(abi.encodeWithSelector(IAgoraType.InsufficientDeposit.selector, alice, ENTRY_FEE, 0));
-        agoraType.submitAttempt(alice, 7000);
-    }
-
-    function test_RevertWhen_DepositBelowEntryFee() public {
-        uint256 _smallDeposit = ENTRY_FEE - 1;
-        _depositAs(alice, _smallDeposit);
-
-        /// WHEN: operator tries to submit for alice with insufficient deposit
-        vm.prank(operatorAddress);
-        vm.expectRevert(
-            abi.encodeWithSelector(IAgoraType.InsufficientDeposit.selector, alice, ENTRY_FEE, _smallDeposit)
-        );
+        vm.expectRevert(IAgoraType.NotSignedUp.selector);
         agoraType.submitAttempt(alice, 7000);
     }
 

@@ -1,0 +1,93 @@
+#!/bin/bash
+
+set -e
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Get project root
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+
+# Patterns to filter out (inherited OZ items + non-interface structs + type mismatches)
+FILTER_PATTERNS=(
+    "error OwnableInvalidOwner"
+    "error OwnableUnauthorizedAccount"
+    "error SafeERC20FailedOperation"
+    "event OwnershipTransferred"
+    "function owner()"
+    "function renounceOwnership()"
+    "function transferOwnership("
+    "struct ConstructorParams"
+    "function token()"
+)
+
+process_contract() {
+    local contract_path=$1
+
+    # Make absolute if needed
+    if [[ "$contract_path" != /* ]]; then
+        contract_path="$PROJECT_ROOT/$contract_path"
+    fi
+
+    # Skip if not a contract file
+    if [[ ! -f "$contract_path" ]] || [[ "$contract_path" == *"/interfaces/"* ]] || [[ "$(basename "$contract_path")" == I* ]]; then
+        return 0
+    fi
+
+    local contract_name=$(basename "$contract_path" .sol)
+    echo -e "${YELLOW}Processing ${contract_name}...${NC}"
+
+    # Build
+    cd "$PROJECT_ROOT"
+    forge build "${contract_path#$PROJECT_ROOT/}"
+
+    # Generate interface
+    local json_path="out/${contract_name}.sol/${contract_name}.json"
+    local interface_path="src/contracts/interfaces/I${contract_name}.sol"
+
+    if [ ! -f "$json_path" ]; then
+        echo -e "${RED}Build failed for ${contract_name}${NC}"
+        return 1
+    fi
+
+    # Get license from original contract
+    local license=$(grep -m 1 "^// SPDX-License-Identifier:" "$contract_path" || echo "// SPDX-License-Identifier: UNLICENSED")
+
+    # Generate with proper name and license
+    cast interface -n "I${contract_name}" "$json_path" > "${interface_path}.tmp"
+
+    # Filter out inherited OZ errors/events/functions and non-interface structs
+    local filtered_content=$(cat "${interface_path}.tmp")
+    for pattern in "${FILTER_PATTERNS[@]}"; do
+        filtered_content=$(echo "$filtered_content" | grep -v "$pattern" || true)
+    done
+
+    # Write final interface
+    echo "$license" > "$interface_path"
+    echo "$filtered_content" | tail -n +2 >> "$interface_path"
+    rm -f "${interface_path}.tmp"
+
+    echo -e "${GREEN}✓ Generated ${interface_path}${NC}"
+}
+
+# Create interfaces directory
+mkdir -p "$PROJECT_ROOT/src/contracts/interfaces"
+
+# Process files
+if [ $# -eq 0 ]; then
+    # No args - process all contracts recursively
+    find "$PROJECT_ROOT/src/contracts" -name "*.sol" -type f | while read -r file; do
+        process_contract "$file"
+    done
+else
+    # Process specified files
+    for file in "$@"; do
+        process_contract "$file"
+    done
+fi
+
+echo -e "${GREEN}Done!${NC}"

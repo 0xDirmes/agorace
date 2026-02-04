@@ -30,8 +30,8 @@ contract TestSettle is BaseTest {
         _signupAs(alice);
         _signupAs(bob);
 
-        _submitAttemptAs(alice, 7000);
-        _submitAttemptAs(bob, 8000); // Bob has higher score
+        _submitAttempt(alice, 7000);
+        _submitAttempt(bob, 8000); // Bob has higher score
 
         uint256 _expectedPrize = 2 * ENTRY_FEE;
 
@@ -51,7 +51,7 @@ contract TestSettle is BaseTest {
     function test_SettleWithSinglePlayer() public {
         // Setup: only alice plays
         _signupAs(alice);
-        _submitAttemptAs(alice, 7000);
+        _submitAttempt(alice, 7000);
 
         uint256 _expectedPrize = ENTRY_FEE;
 
@@ -72,8 +72,8 @@ contract TestSettle is BaseTest {
         _signupAs(alice);
         _signupAs(bob);
 
-        _submitAttemptAs(alice, 7500);
-        _submitAttemptAs(bob, 7500);
+        _submitAttempt(alice, 7500);
+        _submitAttempt(bob, 7500);
 
         uint256 _expectedPrize = 2 * ENTRY_FEE;
 
@@ -90,9 +90,9 @@ contract TestSettle is BaseTest {
         _signupAs(bob);
         _signupAs(charlie);
 
-        _submitAttemptAs(alice, 7000);
-        _submitAttemptAs(bob, 8000);
-        _submitAttemptAs(charlie, 9000); // Charlie wins
+        _submitAttempt(alice, 7000);
+        _submitAttempt(bob, 8000);
+        _submitAttempt(charlie, 9000); // Charlie wins
 
         uint256 _expectedPrize = 3 * ENTRY_FEE;
 
@@ -104,7 +104,7 @@ contract TestSettle is BaseTest {
 
     function test_EmitsSettledEvent() public {
         _signupAs(alice);
-        _submitAttemptAs(alice, 7000);
+        _submitAttempt(alice, 7000);
 
         uint256 _expectedPrize = ENTRY_FEE;
 
@@ -122,7 +122,7 @@ contract TestSettle is BaseTest {
 
     function test_RevertWhen_CompetitionNotEnded() public {
         _signupAs(alice);
-        _submitAttemptAs(alice, 7000);
+        _submitAttempt(alice, 7000);
 
         /// WHEN: trying to settle before competition ends
         vm.prank(ownerAddress);
@@ -132,7 +132,7 @@ contract TestSettle is BaseTest {
 
     function test_RevertWhen_AlreadySettled() public {
         _signupAs(alice);
-        _submitAttemptAs(alice, 7000);
+        _submitAttempt(alice, 7000);
 
         _warpToCompetitionEnd();
         _settle();
@@ -155,7 +155,7 @@ contract TestSettle is BaseTest {
 
     function test_RevertWhen_NotOwner() public {
         _signupAs(alice);
-        _submitAttemptAs(alice, 7000);
+        _submitAttempt(alice, 7000);
 
         _warpToCompetitionEnd();
 

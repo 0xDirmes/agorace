@@ -75,7 +75,7 @@ contract BaseTest is Test, VmHelper {
     /// @notice Submits an attempt as the operator
     /// @param _player The player address
     /// @param _score The score to submit
-    function _submitAttemptAs(
+    function _submitAttempt(
         address _player,
         uint256 _score
     ) internal {

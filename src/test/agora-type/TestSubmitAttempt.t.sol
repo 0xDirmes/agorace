@@ -32,7 +32,7 @@ contract TestSubmitAttempt is BaseTest {
         assertEq({ err: "/// GIVEN: pot has entry fee", left: ENTRY_FEE, right: agoraType.pot() });
 
         // Action
-        _submitAttemptAs(alice, _score);
+        _submitAttempt(alice, _score);
 
         // Assertions
         assertEq({ err: "/// THEN: alice's best score is recorded", left: _score, right: agoraType.bestScore(alice) });
@@ -47,13 +47,13 @@ contract TestSubmitAttempt is BaseTest {
         _signupAs(alice);
 
         // First attempt
-        _submitAttemptAs(alice, _firstScore);
+        _submitAttempt(alice, _firstScore);
         assertEq({
             err: "/// GIVEN: alice's best score is first score", left: _firstScore, right: agoraType.bestScore(alice)
         });
 
         // Second attempt (better)
-        _submitAttemptAs(alice, _secondScore);
+        _submitAttempt(alice, _secondScore);
         assertEq({
             err: "/// THEN: alice's best score updated to second score",
             left: _secondScore,
@@ -61,7 +61,7 @@ contract TestSubmitAttempt is BaseTest {
         });
 
         // Third attempt (worse)
-        _submitAttemptAs(alice, _thirdScore);
+        _submitAttempt(alice, _thirdScore);
         assertEq({
             err: "/// THEN: alice's best score unchanged", left: _secondScore, right: agoraType.bestScore(alice)
         });
@@ -71,11 +71,11 @@ contract TestSubmitAttempt is BaseTest {
         _signupAs(alice);
 
         // First attempt
-        _submitAttemptAs(alice, 7000);
+        _submitAttempt(alice, 7000);
         assertEq({ err: "/// GIVEN: player count is 1", left: 1, right: agoraType.getPlayerCount() });
 
         // Second attempt - still same player count
-        _submitAttemptAs(alice, 8000);
+        _submitAttempt(alice, 8000);
         assertEq({ err: "/// THEN: player count still 1", left: 1, right: agoraType.getPlayerCount() });
     }
 
@@ -83,16 +83,16 @@ contract TestSubmitAttempt is BaseTest {
         _signupAs(alice);
 
         // First attempt
-        _submitAttemptAs(alice, 7000);
+        _submitAttempt(alice, 7000);
         assertEq({ err: "/// GIVEN: pot has entry fee", left: ENTRY_FEE, right: agoraType.pot() });
 
         // Second attempt - pot unchanged
-        _submitAttemptAs(alice, 7500);
+        _submitAttempt(alice, 7500);
         assertEq({ err: "/// THEN: pot unchanged (no additional fee)", left: ENTRY_FEE, right: agoraType.pot() });
         assertEq({ err: "/// THEN: best score updated", left: 7500, right: agoraType.bestScore(alice) });
 
         // Third attempt - still free
-        _submitAttemptAs(alice, 8000);
+        _submitAttempt(alice, 8000);
         assertEq({ err: "/// THEN: pot still same (one-time fee)", left: ENTRY_FEE, right: agoraType.pot() });
         assertEq({ err: "/// THEN: best score updated again", left: 8000, right: agoraType.bestScore(alice) });
     }
@@ -101,8 +101,8 @@ contract TestSubmitAttempt is BaseTest {
         _signupAs(alice);
         _signupAs(bob);
 
-        _submitAttemptAs(alice, 7000);
-        _submitAttemptAs(bob, 8000);
+        _submitAttempt(alice, 7000);
+        _submitAttempt(bob, 8000);
 
         assertEq({ err: "/// THEN: player count is 2", left: 2, right: agoraType.getPlayerCount() });
         assertEq({ err: "/// THEN: pot has 2 entry fees", left: 2 * ENTRY_FEE, right: agoraType.pot() });
@@ -116,7 +116,7 @@ contract TestSubmitAttempt is BaseTest {
         vm.expectEmit(true, false, false, true);
         emit IAgoraType.AttemptSubmitted(alice, _score, _score, ENTRY_FEE);
 
-        _submitAttemptAs(alice, _score);
+        _submitAttempt(alice, _score);
     }
 
     function test_OwnerCanAlsoSubmitAttempts() public {

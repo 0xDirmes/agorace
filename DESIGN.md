@@ -4,16 +4,16 @@ Weekly typing competition with on-chain prize pool. Fully on-chain architecture 
 
 ## Overview
 
-A week-long typing tournament where players sign up with a one-time entry fee for unlimited attempts. The player with the highest score (WPM × accuracy%) at the end of the week wins the entire pot. All attempts are recorded on-chain for public verifiability.
+A week-long typing tournament where players pay 1 AUSD per attempt via gasless approve + transferFrom. The player with the highest score (WPM * accuracy%) at the end of the week wins the entire pot. All attempts are recorded on-chain for public verifiability.
 
 ## Game Rules
 
 | Parameter | Value |
 |-----------|-------|
-| Entry fee | 10 AUSD one-time signup (unlimited attempts) |
+| Attempt fee | 1 AUSD per attempt (gasless via Porto approve) |
 | Duration | 7 days (hardcoded) |
 | Text | Same passage for entire competition |
-| Scoring | `WPM × accuracy%` (e.g., 80 WPM at 95% = 76.0) |
+| Scoring | `WPM * accuracy%` (e.g., 80 WPM at 95% = 76.0) |
 | Winner | Single winner, takes 100% of pot |
 | Ties | First player to reach the highest score wins |
 | Settlement | Owner-triggered at competition end |
@@ -23,13 +23,14 @@ A week-long typing tournament where players sign up with a one-time entry fee fo
 ```
 1. Connect wallet via Porto (passkey-based, no extension needed)
 2. View leaderboard + current pot size + time remaining
-3. Sign up with 10 AUSD (one-time fee, unlimited attempts)
-4. Click "Play" → typing test starts immediately (no wallet popup)
-5. Type the passage as fast and accurately as possible
-6. Score calculated → server submits attempt on-chain (sponsored)
-7. See results: WPM, accuracy, final score, leaderboard position
-8. Play again instantly (no additional fee)
-9. At week end: owner settles, winner receives entire pot
+3. Click "Start Typing"
+   -> If no AUSD allowance: approve AUSD (one-time tx via Porto, gas-sponsored) -> game starts
+   -> If allowance exists: skip straight to game
+4. Type the passage as fast and accurately as possible
+5. Score calculated -> server submits tx: submitAttempt(player, score)
+6. See results: WPM, accuracy, final score, leaderboard position
+7. Play again (no approval needed on subsequent games!)
+8. At week end: owner settles, winner receives entire pot
 ```
 
 ## Architecture
@@ -37,58 +38,51 @@ A week-long typing tournament where players sign up with a one-time entry fee fo
 ### Fully On-Chain Model
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Frontend (Next.js 14)                    │
-│                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐   │
-│  │  Typing UI   │  │  Leaderboard │  │  Porto Wallet    │   │
-│  │  - Passage   │  │  - Rankings  │  │  - Connect       │   │
-│  │  - Input     │  │  - Your best │  │  - Sign Up       │   │
-│  │  - Live WPM  │  │  - Pot size  │  │  - Status        │   │
-│  │  - Accuracy  │  │  - Time left │  │                  │   │
-│  └──────────────┘  └──────────────┘  └──────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    API Routes (Next.js)                      │
-│                                                              │
-│  POST /api/submit-attempt                                    │
-│    - Receive score from client                               │
-│    - Server signs + submits tx to contract (sponsored)       │
-│    - Return tx hash + updated leaderboard position           │
-│                                                              │
-│  GET /api/competition                                        │
-│    - Read contract state (pot, endTime, active)              │
-│    - Return leaderboard (from contract events or indexer)    │
-│                                                              │
-│  POST /api/admin/settle (protected)                          │
-│    - Trigger settlement on contract                          │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Smart Contract (On-Chain)                 │
-│                                                              │
-│  State:                                                      │
-│    - playerState: mapping(address => PlayerState)            │
-│        - bestScore: uint32                                   │
-│        - signedUp: bool                                      │
-│    - players: address[] (for settlement iteration)           │
-│    - pot: uint256                                            │
-│    - startTime, endTime, settled                             │
-│                                                              │
-│  Functions:                                                  │
-│    - signup() → user pays 10 AUSD, gets unlimited attempts   │
-│    - submitAttempt(player, score) → operator submits score   │
-│    - settle() → owner pays winner                            │
-│    - getLeaderboard() → returns all players + scores         │
-│                                                              │
-│  Events:                                                     │
-│    - SignedUp(player, pot)                                   │
-│    - AttemptSubmitted(player, score, bestScore, pot)         │
-│    - Settled(winner, prize)                                  │
-└─────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------+
+|                     Frontend (Next.js 14)                    |
+|                                                              |
+|  +--------------+  +--------------+  +------------------+   |
+|  |  Typing UI   |  |  Leaderboard |  |  Porto Wallet    |   |
+|  |  - Passage   |  |  - Rankings  |  |  - Connect       |   |
+|  |  - Input     |  |  - Your best |  |  - Approve AUSD  |   |
+|  |  - Live WPM  |  |  - Pot size  |  |    (one-time tx)  |   |
+|  |  - Accuracy  |  |  - Time left |  |  - Status        |   |
+|  +--------------+  +--------------+  +------------------+   |
++-------------------------------------------------------------+
+                              |
+                              v
++-------------------------------------------------------------+
+|                    API Routes (Next.js)                      |
+|                                                              |
+|  POST /api/submit-attempt                                    |
+|    - Receive { player, score } from client                   |
+|    - Call AgoRace.submitAttempt(player, score) (sponsored)   |
+|    - Return tx hash                                          |
+|                                                              |
++-------------------------------------------------------------+
+                              |
+                              v
++-------------------------------------------------------------+
+|                    Smart Contract (On-Chain)                  |
+|                                                              |
+|  State:                                                      |
+|    - playerState: mapping(address => PlayerState)            |
+|        - bestScore: uint32                                   |
+|        - hasPlayed: bool                                     |
+|    - players: address[] (for settlement iteration)           |
+|    - pot: uint256                                            |
+|    - startTime, endTime, settled                             |
+|                                                              |
+|  Functions:                                                  |
+|    - submitAttempt(player, score) -> pulls payment via       |
+|      safeTransferFrom (requires prior approve), records score|
+|    - settle() -> owner pays winner                           |
+|    - getLeaderboard() -> returns players, scores             |
+|                                                              |
+|  Events:                                                     |
+|    - AttemptSubmitted(player, score, bestScore, pot)         |
+|    - Settled(winner, prize)                                  |
++-------------------------------------------------------------+
 ```
 
 ### Key Design Decisions
@@ -96,10 +90,24 @@ A week-long typing tournament where players sign up with a one-time entry fee fo
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Data storage | Fully on-chain | Public verifiability, no DB needed |
+| Payment | Direct approve + transferFrom | Porto handles EIP-7702 delegation + gas sponsoring |
 | Attempt submission | Server-sponsored | User doesn't pay gas, seamless UX |
 | Score calculation | Client-side (MVP) | Trusted for now, auditable later |
 | Winner calculation | On-chain iteration | Contract finds highest score at settlement |
 | Wallet | Porto | Passkeys, session keys, no extension |
+| Player identity | Formatted addresses | Prevents griefing via offensive names |
+
+### Why EIP-2612 Permit (Not EIP-3009)
+
+EIP-3009 `receiveWithAuthorization` was the original approach, but is **incompatible with Porto smart wallets**:
+
+- Porto uses P256/WebAuthn passkeys — signatures are wrapped with key metadata: `encodePacked([signature, keyHash, prehash])` (33 extra bytes)
+- EIP-3009 uses `ecrecover` (secp256k1 only) — the wrapped signature causes `parseSignature()` to fail with `"Invalid yParityOrV value"`
+- AUSD's `isReceiveWithAuthorizationUpgraded` is `false` on-chain, meaning `receiveWithAuthorization` does NOT support EIP-1271
+
+AUSD's `permit` function uses `SignatureCheckerLib.isValidSignatureNow` which supports **both** `ecrecover` AND EIP-1271. Since Porto accounts implement EIP-1271 via their EIP-7702 delegate, the `permit(address,address,uint256,uint256,bytes)` overload works with Porto's wrapped P256 signatures.
+
+**Better UX too:** sign once (infinite approval), play forever — vs EIP-3009 which required signing before every game.
 
 ## Tech Stack
 
@@ -110,167 +118,44 @@ A week-long typing tournament where players sign up with a one-time entry fee fo
 | Web3 | wagmi v2 + viem | Porto-compatible, typed, modern |
 | Contracts | Foundry | Fast tests, modern tooling |
 | Styling | Tailwind CSS | Rapid iteration |
-| Chain | Monad Testnet | Fast, EVM-compatible |
+| Chain | Arbitrum Sepolia | Porto-compatible, fast L2 testnet |
 | Hosting | Vercel | Easy deployment, edge functions |
 
 **No database required** - all state lives on-chain.
 
 ## Smart Contract
 
-### AgoraType.sol
+### AgoRace.sol
 
-The contract uses a simplified signup model where players pay a one-time entry fee for unlimited attempts.
+The contract uses a pay-per-attempt model via `approve` + `safeTransferFrom`. Players approve infinite AUSD allowance once (via Porto's gas-sponsored tx), and the server calls `submitAttempt` which pulls payment automatically.
 
 ```solidity
-// SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.28;
+// Key functions:
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+/// @notice Submit attempt — pulls payment via safeTransferFrom
+function submitAttempt(
+    address _player,
+    uint256 _score
+) external onlyOperator whenActive {
+    // Pull payment from player (requires prior approve)
+    IERC20(address(token)).safeTransferFrom(_player, address(this), ATTEMPT_FEE);
+    pot += ATTEMPT_FEE;
 
-contract AgoraType is Ownable {
-    using SafeERC20 for IERC20;
-
-    IERC20 public immutable token;
-
-    uint256 public constant ENTRY_FEE = 10e6;  // 10 AUSD (6 decimals)
-    uint256 public constant DURATION = 7 days;
-
-    // Competition state
-    uint256 public startTime;
-    uint256 public endTime;
-    uint256 public pot;
-    bool public settled;
-    address public operator;
-
-    // Player state (packed into single storage slot)
-    struct PlayerState {
-        uint32 bestScore;
-        bool signedUp;
-    }
-    mapping(address => PlayerState) public playerState;
-    address[] public players;
-
-    // Events
-    event CompetitionStarted(uint256 startTime, uint256 endTime);
-    event SignedUp(address indexed player, uint256 pot);
-    event AttemptSubmitted(address indexed player, uint256 score, uint256 bestScore, uint256 pot);
-    event Settled(address indexed winner, uint256 prize);
-
-    // Errors
-    error AlreadySettled();
-    error AlreadySignedUp();
-    error CompetitionActive();
-    error CompetitionNotActive();
-    error CompetitionNotEnded();
-    error NoPlayers();
-    error NotOperator();
-    error NotSignedUp();
-
-    modifier onlyOperator() {
-        if (msg.sender != operator && msg.sender != owner()) revert NotOperator();
-        _;
+    // Auto-register on first attempt
+    if (!_state.hasPlayed) {
+        _state.hasPlayed = true;
+        _ps.players.push(_player);
     }
 
-    modifier whenActive() {
-        if (block.timestamp < startTime || block.timestamp >= endTime || settled)
-            revert CompetitionNotActive();
-        _;
-    }
-
-    constructor(address _token, address _operator) Ownable(msg.sender) {
-        token = IERC20(_token);
-        operator = _operator;
-    }
-
-    // ============ Player Functions ============
-
-    /// @notice Sign up for the competition (one-time fee, unlimited attempts)
-    function signup() external whenActive {
-        PlayerState storage state = playerState[msg.sender];
-        if (state.signedUp) revert AlreadySignedUp();
-
-        token.safeTransferFrom(msg.sender, address(this), ENTRY_FEE);
-        pot += ENTRY_FEE;
-        state.signedUp = true;
-        players.push(msg.sender);
-
-        emit SignedUp(msg.sender, pot);
-    }
-
-    // ============ Operator Functions ============
-
-    /// @notice Submit an attempt on behalf of a player (server-sponsored)
-    function submitAttempt(address player, uint256 score) external onlyOperator whenActive {
-        PlayerState storage state = playerState[player];
-        if (!state.signedUp) revert NotSignedUp();
-
-        if (score > state.bestScore) state.bestScore = uint32(score);
-
-        emit AttemptSubmitted(player, score, state.bestScore, pot);
-    }
-
-    // ============ Admin Functions ============
-
-    function startCompetition() external onlyOwner {
-        if (startTime != 0 && !settled) revert CompetitionActive();
-
-        startTime = block.timestamp;
-        endTime = block.timestamp + DURATION;
-        settled = false;
-
-        // Clear previous players
-        for (uint i = 0; i < players.length; i++) {
-            delete playerState[players[i]];
-        }
-        delete players;
-
-        emit CompetitionStarted(startTime, endTime);
-    }
-
-    function settle() external onlyOwner {
-        if (block.timestamp < endTime) revert CompetitionNotEnded();
-        if (settled) revert AlreadySettled();
-        if (players.length == 0) revert NoPlayers();
-
-        // Find winner (first to reach highest score wins ties)
-        address winner;
-        uint256 highestScore;
-        for (uint i = 0; i < players.length; i++) {
-            uint256 score = playerState[players[i]].bestScore;
-            if (score > highestScore) {
-                highestScore = score;
-                winner = players[i];
-            }
-        }
-
-        settled = true;
-        uint256 prize = pot;
-        pot = 0;
-
-        token.safeTransfer(winner, prize);
-        emit Settled(winner, prize);
-    }
-
-    // ============ View Functions ============
-
-    function getLeaderboard() external view returns (address[] memory, uint256[] memory) {
-        address[] memory _players = new address[](players.length);
-        uint256[] memory _scores = new uint256[](players.length);
-        for (uint i = 0; i < players.length; i++) {
-            _players[i] = players[i];
-            _scores[i] = playerState[players[i]].bestScore;
-        }
-        return (_players, _scores);
-    }
+    // Update best score if improved
+    if (_score > _state.bestScore) _state.bestScore = uint32(_score);
 }
 ```
 
 ### Score Encoding
 
 Scores are stored as integers scaled by 100 to preserve 2 decimal places:
-- `76.50` score → stored as `7650`
+- `76.50` score -> stored as `7650`
 - Frontend divides by 100 for display
 
 ## Typing Interface
@@ -287,66 +172,51 @@ interface TypingResult {
   correctChars: number;
   totalChars: number;
 }
-
-function calculateScore(
-  targetText: string,
-  typedText: string,
-  timeMs: number
-): TypingResult {
-  const totalChars = targetText.length;
-  let correctChars = 0;
-
-  for (let i = 0; i < Math.min(targetText.length, typedText.length); i++) {
-    if (targetText[i] === typedText[i]) {
-      correctChars++;
-    }
-  }
-
-  const accuracy = (correctChars / totalChars) * 100;
-  const minutes = timeMs / 60000;
-  const words = totalChars / 5;  // Standard: 1 word = 5 chars
-  const wpm = Math.round(words / minutes);
-  const score = (wpm * accuracy) / 100;
-  const scoreEncoded = Math.round(score * 100);  // For contract storage
-
-  return {
-    wpm,
-    accuracy: Math.round(accuracy * 100) / 100,
-    score: Math.round(score * 100) / 100,
-    scoreEncoded,
-    timeMs,
-    correctChars,
-    totalChars
-  };
-}
 ```
 
 ### UI States
 
 1. **Not Connected** - Show Porto "Connect" button
-2. **Connected, Not Signed Up** - Show "Sign Up (10 AUSD)" button
-3. **Connected, Signed Up, Active Competition** - Show "Play" button
-4. **Playing** - Show typing interface with live WPM/accuracy
-5. **Submitting** - Show "Recording score..." (server submitting tx)
-6. **Completed** - Show results, leaderboard position, "Play Again" button
-7. **Competition Ended** - Show final leaderboard, winner announcement
+2. **Connected, Active Competition** - Show "Start Typing" button
+3. **Checking** - Reading allowance from chain
+4. **Approving (one-time)** - Sending approve tx via Porto (gas-sponsored) — skipped on subsequent plays
+5. **Playing** - Show typing interface with live WPM/accuracy
+6. **Submitting** - Show "Recording score..." (server submitting tx)
+7. **Completed** - Show results, leaderboard position, "Play Again" button
+8. **Competition Ended** - Show final leaderboard, winner announcement
 
 ## Implementation Phases
 
 ### Phase 1: MVP
 - [x] Foundry project setup
-- [x] AgoraType contract with signup model
+- [x] AgoRace contract with signup model
 - [x] Mock AUSD token for testnet
 - [x] Comprehensive test suite
-- [ ] Deploy to testnet
-- [ ] Next.js app scaffold
-- [ ] Porto integration for wallet connection
-- [ ] Basic typing UI (passage display, input, timer)
-- [ ] Score calculation
-- [ ] Signup flow (approve + signup)
-- [ ] Server endpoint to submit attempts (sponsored tx)
-- [ ] Basic leaderboard (read from contract)
-- [ ] Manual settlement via script
+- [x] Deploy to Arbitrum Sepolia (using deploy-framework)
+- [x] Next.js 14 app scaffold (in `frontend/`)
+- [x] Porto integration for wallet connection
+- [x] Basic typing UI (passage display, input, timer, live WPM/accuracy)
+- [x] Score calculation (client-side)
+- [x] Signup flow (approve + signup with loading states)
+- [x] Server endpoint to submit attempts (POST /api/submit-attempt)
+- [x] Basic leaderboard (polling from contract)
+- [x] Redeploy contract with MockAUSD
+- [x] Start competition + test signups
+
+### Phase 1.5: Pay-Per-Attempt + Remove Names
+- [x] Remove player names (prevent griefing via offensive names)
+- [x] Replace one-time signup with per-attempt payment via EIP-3009
+- [x] Use real AUSD with receiveWithAuthorization
+- [x] Fork-based tests against Arbitrum Sepolia
+- [x] Update frontend for gasless sign-before-play flow
+
+### Phase 1.6: Porto Compatibility (EIP-2612 Permit)
+- [x] Replace EIP-3009 with EIP-2612 permit + safeTransferFrom
+- [x] Simplify submitAttempt to 2 params (player, score)
+- [x] One-time infinite approval via permit (better UX)
+- [x] Frontend: useApprove + useAllowance hooks
+- [x] API route: simplified submitAttempt (no permit)
+- [x] Redeploy contract (v3.0.0)
 
 ### Phase 2: Production Ready
 - [ ] Proper error handling + loading states
@@ -365,17 +235,20 @@ function calculateScore(
 - [ ] Player profiles (total attempts, best scores across competitions)
 - [ ] Keystroke recording for anti-cheat audits (future)
 
-## Sample Typing Passage (Placeholder)
+## Deployed Contracts (Arbitrum Sepolia)
 
-```
-The quick brown fox jumps over the lazy dog. This pangram contains every letter
-of the English alphabet at least once. Typing tests have been used for decades
-to measure typing speed and accuracy. The average typing speed is around 40 words
-per minute, while professional typists can exceed 80 words per minute. Practice
-and proper finger placement are key to improving your typing skills.
-```
+| Contract | Address |
+|----------|---------|
+| AgoRaceProxy | `0x8136A6104839233D90a1df7bBeC4578b3B0b4bfB` |
+| AgoRaceImpl | `0x7552BCF0Cae0C528050427C250bf95c176da1674` |
+| AgoRaceProxyAdmin | `0xEb32d4e93f9D4ED6873BE6EEd0037B7fD04CAF01` |
+| AUSD (AgoraDollar) | `0xa9012a055bd4e0edff8ce09f960291c09d5322dc` |
+| AUSD Role Holder | `0x99B0E95Fa8F5C3b86e4d78ED715B475cFCcf6E97` |
 
-~180 characters, ~36 words. Will be replaced with final passage.
+**Deployment Details:**
+- Chain ID: 421614 (Arbitrum Sepolia)
+- Owner/Operator: `0xb07eFD484Baf4E53767da2C00dd31D61840496a7`
+- Block Explorer: `https://sepolia.arbiscan.io`
 
 ## Environment Variables
 
@@ -383,25 +256,22 @@ See `.env.example` and `SETUP.md` for full configuration.
 
 ```bash
 # Key variables
-RPC_ENDPOINT=https://monad-testnet.g.alchemy.com/v2/<API_KEY>
+RPC_API_ENDPOINT=<alchemy_api_key>
 SERVER_ADDRESS=0xb07eFD484Baf4E53767da2C00dd31D61840496a7
 SERVER_PK=<private_key>
-NEXT_PUBLIC_CHAIN_ID=10143  # Monad Testnet
+NEXT_PUBLIC_CHAIN_ID=421614  # Arbitrum Sepolia
 ```
 
-## Gas Costs (Estimated for Base)
+## Gas Costs (Estimated)
 
 | Operation | Gas | Cost (at 0.01 gwei) |
 |-----------|-----|---------------------|
-| signup() | ~80k | ~$0.002 |
-| submitAttempt() | ~50k | ~$0.001 |
+| submitAttempt() | ~100k | ~$0.002 |
 | settle() | ~100k + 20k/player | ~$0.01-0.05 |
 
 **Operator cost per competition:**
-- 100 attempts = ~$0.10 in gas (submitAttempt only, signup paid by user)
-- 1000 attempts = ~$1.00 in gas
-
-Acceptable for a side project. The one-time signup model reduces operator costs since users pay their own signup gas.
+- 100 attempts = ~$0.20 in gas (approve is user-side via Porto)
+- 1000 attempts = ~$2.00 in gas
 
 ## Future Considerations
 

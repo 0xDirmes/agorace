@@ -9,21 +9,20 @@ Use [solidity-template](https://github.com/amphora-atlas/solidity-template) as t
 ```
 src/
 ├── contracts/           # Main contract files
-│   ├── AgoraType.sol
+│   ├── AgoRace.sol
 │   ├── interfaces/      # Interface definitions
-│   │   └── IAgoraType.sol
+│   │   └── IAgoRace.sol
 │   └── mocks/           # Mock contracts for testing
 │       └── MockAUSD.sol
 ├── script/              # Deployment scripts
 │   ├── BaseScript.sol
 │   └── deploy/
-│       └── deployAgoraType.s.sol
+│       └── deployAgoRace.s.sol
 └── test/                # Test files
     ├── BaseTest.sol     # Shared test setup
     ├── Helpers.sol      # Test utilities
-    └── agora-type/      # Feature-specific tests
-        ├── TestDeposit.t.sol
-        ├── TestWithdraw.t.sol
+    └── ago-race/        # Feature-specific tests
+        ├── TestSignup.t.sol
         ├── TestSubmitAttempt.t.sol
         └── TestSettle.t.sol
 ```
@@ -69,7 +68,7 @@ pragma solidity 0.8.28;
 //        _/ /   \ \_\ `.___]  |\  `-'  /_| |  \ \_  _/ /   \ \_
 //       |____| |____|`._____.'  `.___.'|____| |___||____| |____|
 // ====================================================================
-// ============================ AgoraType =============================
+// ============================ AgoRace =============================
 // ====================================================================
 ```
 
@@ -83,7 +82,7 @@ pragma solidity 0.8.28;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
-import { IAgoraType } from "./interfaces/IAgoraType.sol";
+import { IAgoRace } from "./interfaces/IAgoRace.sol";
 ```
 
 ### Struct Definitions
@@ -91,7 +90,7 @@ import { IAgoraType } from "./interfaces/IAgoraType.sol";
 Define structs outside the contract with natspec:
 
 ```solidity
-/// @notice The Constructor Params for AgoraType
+/// @notice The Constructor Params for AgoRace
 /// @param token The address of the entry token (AUSD)
 /// @param operator The address of the operator
 struct ConstructorParams {
@@ -197,7 +196,7 @@ Interfaces should mirror the contract structure:
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.4;
 
-interface IAgoraType {
+interface IAgoRace {
     // Structs (as libraries for external visibility)
     struct Version {
         uint256 major;
@@ -233,12 +232,12 @@ pragma solidity ^0.8.28;
 import { Test, console2 as console } from "forge-std/Test.sol";
 import { VmHelper } from "agora-std/VmHelper.sol";
 
-import { AgoraType } from "contracts/AgoraType.sol";
+import { AgoRace } from "contracts/AgoRace.sol";
 import { MockAUSD } from "contracts/mocks/MockAUSD.sol";
 
 contract BaseTest is Test, VmHelper {
     MockAUSD public token;
-    AgoraType public agoraType;
+    AgoRace public agoRace;
 
     address public ownerAddress;
     address public operatorAddress;
@@ -250,9 +249,9 @@ contract BaseTest is Test, VmHelper {
         // Deploy mock token
         token = new MockAUSD();
 
-        // Deploy AgoraType
+        // Deploy AgoRace
         vm.prank(ownerAddress);
-        agoraType = new AgoraType(address(token), operatorAddress);
+        agoRace = new AgoRace(address(token), operatorAddress);
     }
 }
 ```
@@ -282,7 +281,7 @@ contract TestDeposit is BaseTest {
         // Setup
         token.mint(alice, _amount);
         vm.prank(alice);
-        token.approve(address(agoraType), _amount);
+        token.approve(address(agoRace), _amount);
 
         assertEq({
             err: "/// GIVEN: alice has tokens",
@@ -292,21 +291,21 @@ contract TestDeposit is BaseTest {
 
         // Action
         vm.prank(alice);
-        agoraType.deposit(_amount);
+        agoRace.deposit(_amount);
 
         // Assertions
         assertEq({
             err: "/// THEN: alice's deposit is recorded",
             left: _amount,
-            right: agoraType.deposits(alice)
+            right: agoRace.deposits(alice)
         });
     }
 
     function test_RevertWhen_DepositZero() public {
         /// WHEN: alice tries to deposit 0
         vm.prank(alice);
-        vm.expectRevert(AgoraType.ZeroAmount.selector);
-        agoraType.deposit(0);
+        vm.expectRevert(AgoRace.ZeroAmount.selector);
+        agoRace.deposit(0);
     }
 }
 ```
@@ -325,7 +324,7 @@ Use named assertions with Gherkin-style comments:
 assertEq({
     err: "/// GIVEN: alice has initial balance of 0",
     left: 0,
-    right: agoraType.deposits(alice)
+    right: agoRace.deposits(alice)
 });
 
 // ... action ...
@@ -333,7 +332,7 @@ assertEq({
 assertEq({
     err: "/// THEN: alice's balance increased by _amount",
     left: _amount,
-    right: agoraType.deposits(alice)
+    right: agoRace.deposits(alice)
 });
 ```
 
@@ -342,12 +341,12 @@ assertEq({
 Create abstract helper contracts for common actions:
 
 ```solidity
-abstract contract AgoraTypeDepositFunctions is BaseTest {
+abstract contract AgoRaceDepositFunctions is BaseTest {
     function _deposit_as(address _player, uint256 _amount) internal {
         token.mint(_player, _amount);
         vm.startPrank(_player);
-        token.approve(address(agoraType), _amount);
-        agoraType.deposit(_amount);
+        token.approve(address(agoRace), _amount);
+        agoRace.deposit(_amount);
         vm.stopPrank();
     }
 }

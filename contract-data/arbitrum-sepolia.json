@@ -1,0 +1,35 @@
+[
+  {
+    "deployer": "0xb07eFD484Baf4E53767da2C00dd31D61840496a7",
+    "deploymentAddress": "0xEb32d4e93f9D4ED6873BE6EEd0037B7fD04CAF01",
+    "deploymentVersion": 6,
+    "name": "AgoRaceProxyAdmin",
+    "version": {
+      "major": 1,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  {
+    "deployer": "0xb07eFD484Baf4E53767da2C00dd31D61840496a7",
+    "deploymentAddress": "0x7552BCF0Cae0C528050427C250bf95c176da1674",
+    "deploymentVersion": 6,
+    "name": "AgoRaceImpl",
+    "version": {
+      "major": 3,
+      "minor": 0,
+      "patch": 0
+    }
+  },
+  {
+    "deployer": "0xb07eFD484Baf4E53767da2C00dd31D61840496a7",
+    "deploymentAddress": "0x8136A6104839233D90a1df7bBeC4578b3B0b4bfB",
+    "deploymentVersion": 6,
+    "name": "AgoRaceProxy",
+    "version": {
+      "major": 3,
+      "minor": 0,
+      "patch": 0
+    }
+  }
+]

@@ -1,0 +1,236 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* AgoRace Design System - Agora Brand Colors */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+
+@layer base {
+  :root {
+    /* Agora Brand - Light Mode */
+    --background: 48 47% 96%;
+    --foreground: 50 8% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 50 8% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 50 8% 12%;
+    --primary: 54 32% 46%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 145 26% 24%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 48 30% 90%;
+    --muted-foreground: 50 8% 40%;
+    --accent: 32 70% 81%;
+    --accent-foreground: 50 8% 12%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 48 20% 85%;
+    --input: 48 20% 85%;
+    --ring: 54 32% 46%;
+    --radius: 0.5rem;
+
+    /* AgoRace Custom Tokens */
+    --olive: 54 32% 46%;
+    --forest: 145 26% 24%;
+    --apricot: 32 70% 81%;
+    --cream: 48 47% 96%;
+    --agora-black: 50 8% 12%;
+    --agora-gray: 0 0% 85%;
+
+    /* Game-specific colors */
+    --correct: 142 71% 45%;
+    --error: 0 84% 60%;
+    --warning: 38 92% 50%;
+    --prize-glow: 54 100% 60%;
+  }
+
+  .dark {
+    /* AgoRace Dark Theme - Primary */
+    --background: 50 8% 8%;
+    --foreground: 48 47% 96%;
+    --card: 50 8% 11%;
+    --card-foreground: 48 47% 96%;
+    --popover: 50 8% 11%;
+    --popover-foreground: 48 47% 96%;
+    --primary: 54 32% 46%;
+    --primary-foreground: 50 8% 8%;
+    --secondary: 145 26% 24%;
+    --secondary-foreground: 48 47% 96%;
+    --muted: 50 8% 16%;
+    --muted-foreground: 48 20% 60%;
+    --accent: 32 70% 81%;
+    --accent-foreground: 50 8% 8%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 50 8% 18%;
+    --input: 50 8% 18%;
+    --ring: 54 32% 46%;
+
+    /* AgoRace Custom Tokens - Dark */
+    --olive: 54 32% 46%;
+    --forest: 145 26% 30%;
+    --apricot: 32 70% 81%;
+    --cream: 48 47% 96%;
+    --agora-black: 50 8% 8%;
+    --agora-gray: 50 8% 25%;
+
+    /* Game-specific colors */
+    --correct: 142 71% 45%;
+    --error: 0 84% 60%;
+    --warning: 38 92% 50%;
+    --prize-glow: 54 100% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: "Inter", system-ui, sans-serif;
+  }
+
+  .font-mono {
+    font-family: "JetBrains Mono", monospace;
+  }
+}
+
+@layer components {
+  /* Glowing prize pool effect */
+  .prize-glow {
+    text-shadow:
+      0 0 20px hsl(var(--prize-glow) / 0.5),
+      0 0 40px hsl(var(--prize-glow) / 0.3),
+      0 0 60px hsl(var(--prize-glow) / 0.1);
+  }
+
+  /* Typing character states */
+  .char-correct {
+    @apply text-correct;
+  }
+
+  .char-error {
+    @apply text-error bg-error/20;
+  }
+
+  .char-current {
+    @apply border-l-2 border-primary animate-pulse;
+  }
+
+  .char-pending {
+    @apply text-muted-foreground;
+  }
+
+  /* Leaderboard row hover */
+  .leaderboard-row {
+    @apply transition-all duration-200 hover:bg-muted/50;
+  }
+
+  .leaderboard-row-highlight {
+    @apply bg-primary/10 border-l-2 border-primary;
+  }
+
+  /* Glass card effect */
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent;
+    background-size: 200% auto;
+    animation: gradient-shift 3s ease-in-out infinite;
+  }
+
+  @keyframes gradient-shift {
+    0%,
+    100% {
+      background-position: 0% center;
+    }
+    50% {
+      background-position: 100% center;
+    }
+  }
+
+  /* Stats counter animation */
+  .stat-value {
+    @apply font-mono tabular-nums;
+  }
+
+  /* Button variants for game */
+  .btn-game-primary {
+    @apply bg-primary text-primary-foreground font-semibold px-8 py-4 rounded-lg
+           hover:bg-primary/90 transition-all duration-200
+           shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30
+           hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  .btn-game-secondary {
+    @apply bg-secondary text-secondary-foreground font-semibold px-8 py-4 rounded-lg
+           hover:bg-secondary/90 transition-all duration-200
+           border border-secondary-foreground/20;
+  }
+
+  .btn-game-outline {
+    @apply border-2 border-primary text-primary font-semibold px-8 py-4 rounded-lg
+           hover:bg-primary hover:text-primary-foreground transition-all duration-200;
+  }
+}
+
+@layer utilities {
+  .text-correct {
+    color: hsl(var(--correct));
+  }
+
+  .text-error {
+    color: hsl(var(--error));
+  }
+
+  .text-warning {
+    color: hsl(var(--warning));
+  }
+}
+
+/* Custom Scrollbar Styles */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+/* Chrome, Edge, Safari */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+  background-clip: content-box;
+}
+
+/* Leaderboard specific scrollbar - slightly more visible */
+.leaderboard-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.3);
+  background-clip: content-box;
+}
+
+.leaderboard-scroll::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.5);
+  background-clip: content-box;
+}

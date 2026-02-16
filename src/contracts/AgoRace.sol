@@ -9,26 +9,32 @@ pragma solidity 0.8.28;
 //        _/ /   \ \_\ `.___]  |\  `-'  /_| |  \ \_  _/ /   \ \_
 //       |____| |____|`._____.'  `.___.'|____| |___||____| |____|
 // ====================================================================
-// ============================ AgoraType =============================
+// ============================ AgoRace =============================
 // ====================================================================
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { Erc1967Implementation } from "agora-contracts/proxy/Erc1967Implementation.sol";
 
-/// @notice The ```ConstructorParams``` struct is used to initialize the AgoraType contract
-/// @param token The address of the entry token (e.g., AUSD)
+import { IAgoraDollar } from "src/interfaces/IAgoraDollar.sol";
+
+/// @notice The ```ConstructorParams``` struct is used to initialize the AgoRace contract
+/// @param initialOwner The initial owner of the contract
+/// @param token The address of the AUSD token (must support EIP-2612 permit)
 /// @param operator The address of the operator who can submit attempts
 struct ConstructorParams {
+    address initialOwner;
     address token;
     address operator;
 }
 
-/// @title AgoraType
+/// @title AgoRace
 /// @notice Weekly typing competition with on-chain prize pool
-/// @dev Players deposit tokens, pay entry fee per attempt, highest score wins the pot
+/// @dev Players pre-approve AUSD via EIP-2612 permit. Operator submits scores and pulls payment via safeTransferFrom.
 /// @author Agora
-contract AgoraType is Ownable {
+contract AgoRace is Initializable, OwnableUpgradeable, Erc1967Implementation {
 
     using SafeERC20 for IERC20;
 
@@ -50,9 +56,6 @@ contract AgoraType is Ownable {
     /// @notice Thrown when attempting to settle an already settled competition
     error AlreadySettled();
 
-    /// @notice Thrown when a player attempts to sign up more than once
-    error AlreadySignedUp();
-
     /// @notice Thrown when attempting to start a new competition while one is active
     error CompetitionActive();
 
@@ -67,9 +70,6 @@ contract AgoraType is Ownable {
 
     /// @notice Thrown when a non-operator attempts an operator-only action
     error NotOperator();
-
-    /// @notice Thrown when submitting an attempt for a player who hasn't signed up
-    error NotSignedUp();
 
     /// @notice Thrown when a zero address is provided where not allowed
     error ZeroAddress();
@@ -99,35 +99,30 @@ contract AgoraType is Ownable {
     /// @param prize The prize amount transferred to the winner
     event Settled(address indexed winner, uint256 prize);
 
-    /// @notice Emitted when a player signs up for the competition
-    /// @param player The player's address
-    /// @param pot The new prize pot total after signup
-    event SignedUp(address indexed player, uint256 pot);
-
     //==============================================================================
     // ERC7201 Storage
     //==============================================================================
 
     /// @notice Player state packed into single storage slot
     /// @param bestScore Best score achieved, scaled by 100 (uint32 = 4 bytes)
-    /// @param signedUp Whether player has signed up for current competition (bool = 1 byte)
+    /// @param hasPlayed Whether player has played in current competition (bool = 1 byte)
     /// @dev Total: 5 bytes, fits in single 32-byte slot
     struct PlayerState {
         uint32 bestScore;
-        bool signedUp;
+        bool hasPlayed;
     }
 
     /// @notice Storage layout for player-related data
     /// @param playerState Mapping of player address to their state
     /// @param players Array of all players who have submitted attempts
-    /// @custom:storage-location erc7201:AgoraType.PlayerStorage
+    /// @custom:storage-location erc7201:AgoRace.PlayerStorage
     struct PlayerStorage {
-        mapping(address player => PlayerState state) playerState;
         address[] players;
+        mapping(address player => PlayerState state) playerState;
     }
 
     /// @dev Pre-computed storage slot for PlayerStorage
-    /// @dev keccak256(abi.encode(uint256(keccak256("AgoraType.PlayerStorage")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev keccak256(abi.encode(uint256(keccak256("AgoRace.PlayerStorage")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant _PLAYER_STORAGE_SLOT = 0xeaa2e3eb337c0f0538e92113a18cbf9c5a274d01b3f0a9abfb10faa475a60b00;
 
     /// @notice Returns a pointer to the PlayerStorage struct
@@ -143,22 +138,18 @@ contract AgoraType is Ownable {
     // Constants
     //==============================================================================
 
-    /// @notice One-time entry fee for unlimited plays (10 tokens with 6 decimals)
-    uint256 public constant ENTRY_FEE = 10e6;
+    /// @notice Per-attempt fee (1 AUSD with 6 decimals)
+    uint256 public constant ATTEMPT_FEE = 1e6;
 
     /// @notice Competition duration (7 days)
     uint256 public constant DURATION = 7 days;
 
     //==============================================================================
-    // Immutables
-    //==============================================================================
-
-    /// @notice The token used for deposits and prizes
-    IERC20 public immutable token;
-
-    //==============================================================================
     // Storage
     //==============================================================================
+
+    /// @notice The AUSD token used for payments and prizes (supports EIP-2612 permit)
+    IAgoraDollar public token;
 
     /// @notice The operator address that can submit attempts on behalf of players
     address public operator;
@@ -169,25 +160,33 @@ contract AgoraType is Ownable {
     /// @notice Competition end timestamp
     uint256 public endTime;
 
-    /// @notice Total prize pot accumulated from entry fees
+    /// @notice Total prize pot accumulated from attempt fees
     uint256 public pot;
 
     /// @notice Whether the competition has been settled
     bool public settled;
 
     //==============================================================================
-    // Constructor
+    // Constructor & Initializer
     //==============================================================================
 
-    /// @notice The ```constructor``` function initializes the AgoraType contract
-    /// @param _params The constructor parameters
-    constructor(
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /// @notice Initializes the contract (called once via proxy)
+    /// @param _params The initialization parameters
+    function initialize(
         ConstructorParams memory _params
-    ) Ownable(msg.sender) {
+    ) external initializer {
+        if (_params.initialOwner == address(0)) revert ZeroAddress();
         if (_params.token == address(0)) revert ZeroAddress();
         if (_params.operator == address(0)) revert ZeroAddress();
 
-        token = IERC20(_params.token);
+        __Ownable_init(_params.initialOwner);
+
+        token = IAgoraDollar(_params.token);
         operator = _params.operator;
     }
 
@@ -269,28 +268,8 @@ contract AgoraType is Ownable {
         uint256 _prize = pot;
         pot = 0;
 
-        token.safeTransfer(_winner, _prize);
+        IERC20(address(token)).safeTransfer(_winner, _prize);
         emit Settled(_winner, _prize);
-    }
-
-    //==============================================================================
-    // Player Functions
-    //==============================================================================
-
-    /// @notice The ```signup``` function registers a player for the current competition
-    /// @dev Requires prior ERC20 approval. Charges ENTRY_FEE immediately.
-    function signup() external whenActive {
-        PlayerStorage storage _s = _getPlayerStorage();
-        PlayerState storage _state = _s.playerState[msg.sender];
-
-        if (_state.signedUp) revert AlreadySignedUp();
-
-        token.safeTransferFrom(msg.sender, address(this), ENTRY_FEE);
-        pot += ENTRY_FEE;
-        _state.signedUp = true;
-        _s.players.push(msg.sender);
-
-        emit SignedUp(msg.sender, pot);
     }
 
     //==============================================================================
@@ -298,17 +277,25 @@ contract AgoraType is Ownable {
     //==============================================================================
 
     /// @notice The ```submitAttempt``` function submits an attempt on behalf of a player
-    /// @dev Only callable by operator. Player must have signed up first.
+    /// @dev Pulls payment via safeTransferFrom (player must have approved via EIP-2612 permit).
+    ///      Auto-registers the player on first attempt.
     /// @param _player The player's address
     /// @param _score The calculated score (WPM * accuracy, scaled by 100)
     function submitAttempt(
         address _player,
         uint256 _score
     ) external onlyOperator whenActive {
-        PlayerStorage storage _s = _getPlayerStorage();
-        PlayerState storage _state = _s.playerState[_player];
+        // Pull payment from player (requires prior approval via permit or approve)
+        IERC20(address(token)).safeTransferFrom(_player, address(this), ATTEMPT_FEE);
+        pot += ATTEMPT_FEE;
 
-        if (!_state.signedUp) revert NotSignedUp();
+        // Auto-register on first attempt
+        PlayerStorage storage _ps = _getPlayerStorage();
+        PlayerState storage _state = _ps.playerState[_player];
+        if (!_state.hasPlayed) {
+            _state.hasPlayed = true;
+            _ps.players.push(_player);
+        }
 
         if (_score > _state.bestScore) _state.bestScore = uint32(_score);
 
@@ -335,39 +322,35 @@ contract AgoraType is Ownable {
         return (startTime, endTime, pot, settled, _isActive, _getPlayerStorage().players.length);
     }
 
-    /// @notice The ```bestScore``` function returns a player's best score
-    /// @param _player The player's address
-    /// @return _score Player's best score in current competition
-    function bestScore(
-        address _player
-    ) external view returns (uint256 _score) {
-        return _getPlayerStorage().playerState[_player].bestScore;
-    }
-
     /// @notice The ```getPlayerState``` function returns a player's current state
     /// @param _player The player's address
     /// @return _bestScore Player's best score in current competition
-    /// @return _hasPlayed Whether the player has signed up for current competition
+    /// @return _hasPlayed Whether the player has played in current competition
     function getPlayerState(
         address _player
     ) external view returns (uint256 _bestScore, bool _hasPlayed) {
         PlayerState storage _state = _getPlayerStorage().playerState[_player];
-        return (_state.bestScore, _state.signedUp);
+        return (_state.bestScore, _state.hasPlayed);
     }
 
     /// @notice The ```getLeaderboard``` function returns player addresses and scores
     /// @dev Returns unsorted data. Frontend should sort by score descending.
     /// @return _players Array of player addresses
     /// @return _scores Array of corresponding best scores
-    function getLeaderboard() external view returns (address[] memory _players, uint256[] memory _scores) {
+    function getLeaderboard()
+        external
+        view
+        returns (address[] memory _players, uint256[] memory _scores)
+    {
         PlayerStorage storage _s = _getPlayerStorage();
         uint256 _count = _s.players.length;
         _players = new address[](_count);
         _scores = new uint256[](_count);
 
         for (uint256 i = 0; i < _count; i++) {
-            _players[i] = _s.players[i];
-            _scores[i] = _s.playerState[_s.players[i]].bestScore;
+            address _player = _s.players[i];
+            _players[i] = _player;
+            _scores[i] = _s.playerState[_player].bestScore;
         }
     }
 
@@ -375,15 +358,6 @@ contract AgoraType is Ownable {
     /// @return _count Number of players
     function getPlayerCount() external view returns (uint256 _count) {
         return _getPlayerStorage().players.length;
-    }
-
-    /// @notice The ```isPlayer``` function checks if an address has played
-    /// @param _player The address to check
-    /// @return _hasPlayed Whether the address has played
-    function isPlayer(
-        address _player
-    ) external view returns (bool _hasPlayed) {
-        return _getPlayerStorage().playerState[_player].signedUp;
     }
 
     /// @notice The ```players``` function returns a player address by index
@@ -402,7 +376,7 @@ contract AgoraType is Ownable {
     /// @notice The ```version``` function returns the contract version
     /// @return _version The version struct
     function version() public pure returns (Version memory _version) {
-        _version = Version({ major: 1, minor: 0, patch: 0 });
+        _version = Version({ major: 3, minor: 0, patch: 0 });
     }
 
 }

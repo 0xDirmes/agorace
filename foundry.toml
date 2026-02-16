@@ -32,11 +32,19 @@ remappings = [
   "forge-std/=node_modules/forge-std/src/",
   "ds-test/=node_modules/ds-test/src/",
   "agora-std/=lib/agora-standard-solidity/src/",
-  "@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/"
+  "@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/",
+  "@openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/",
+  "deploy-framework/=lib/evm-deployments/src/deploy-framework/",
+  "createx/=lib/evm-deployments/node_modules/createx/src/",
+  "agora-contracts/=lib/evm-deployments/node_modules/agora-contracts/src/contracts/"
+]
+
+fs_permissions = [
+  { access = "read-write", path = "./contract-data" }
 ]
 
 [rpc_endpoints]
-monad_testnet = "${RPC_ENDPOINT}"
+arbitrum_sepolia = "https://arb-sepolia.g.alchemy.com/v2/${RPC_API_ENDPOINT}"
 
 [fmt]
 single_line_statement_blocks = "single"

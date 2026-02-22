@@ -26,21 +26,7 @@ export function ConnectButton({ variant = "primary" }: ConnectButtonProps) {
 
   const handleConnect = () => {
     if (!portoConnector) return;
-
-    const hasConnectedBefore =
-      localStorage.getItem("porto.hasConnected") === "true";
-
-    connect(
-      {
-        connector: portoConnector,
-        ...(hasConnectedBefore ? {} : { createAccount: true }),
-      },
-      {
-        onSuccess: () => {
-          localStorage.setItem("porto.hasConnected", "true");
-        },
-      },
-    );
+    connect({ connector: portoConnector });
   };
 
   // Format balance for display (AUSD has 6 decimals)

@@ -1,4 +1,5 @@
 import { Route, Router } from "porto/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const route = Router({ basePath: "/api/porto" }).route(
   "/merchant",
@@ -9,6 +10,25 @@ const route = Router({ basePath: "/api/porto" }).route(
   }),
 );
 
-export const GET = route.fetch;
-export const OPTIONS = route.fetch;
-export const POST = route.fetch;
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "https://id.porto.sh",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Private-Network": "true",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
+}
+
+async function withCors(request: NextRequest) {
+  const response = await route.fetch(request);
+  const newResponse = new NextResponse(response.body, response);
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    newResponse.headers.set(key, value);
+  }
+  return newResponse;
+}
+
+export const GET = withCors;
+export const POST = withCors;

@@ -8,6 +8,9 @@ import {
   Minus,
   RotateCcw,
   Loader2,
+  ExternalLink,
+  AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 
 interface ResultsProps {
@@ -19,6 +22,8 @@ interface ResultsProps {
   newRank: number | null;
   previousRank?: number | null;
   isSubmitting?: boolean;
+  submitError?: string | null;
+  txHash?: string | null;
   onPlayAgain: () => void;
   onClose: () => void;
 }
@@ -32,6 +37,8 @@ export function Results({
   newRank,
   previousRank,
   isSubmitting = false,
+  submitError = null,
+  txHash = null,
   onPlayAgain,
   onClose,
 }: ResultsProps) {
@@ -159,11 +166,31 @@ export function Results({
             </div>
           )}
 
-          {/* Submitting indicator */}
+          {/* Submission status */}
           {isSubmitting && (
             <div className="flex items-center justify-center gap-2 text-muted-foreground">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span className="text-sm">Submitting score...</span>
+            </div>
+          )}
+          {!isSubmitting && txHash && (
+            <div className="flex items-center justify-center gap-2 text-correct">
+              <CheckCircle2 className="w-4 h-4" />
+              <span className="text-sm">Score submitted!</span>
+              <a
+                href={`https://sepolia.arbiscan.io/tx/${txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
+                View tx <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          )}
+          {!isSubmitting && submitError && (
+            <div className="flex items-center justify-center gap-2 text-error">
+              <AlertCircle className="w-4 h-4" />
+              <span className="text-sm">{submitError}</span>
             </div>
           )}
         </div>

@@ -2,14 +2,12 @@
 
 import { http, createConfig, createStorage, cookieStorage } from "wagmi";
 import { porto } from "porto/wagmi";
-import { Mode } from "porto";
 import { arbitrumSepolia } from "./chains";
 
 export const config = createConfig({
   chains: [arbitrumSepolia],
   connectors: [
     porto({
-      mode: Mode.relay(),
       merchantUrl: "/api/porto/merchant",
     }),
   ],

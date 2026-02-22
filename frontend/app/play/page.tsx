@@ -23,7 +23,7 @@ export default function PlayPage() {
   const { isConnected } = useAccount();
   const { bestScore } = usePlayerState();
   const { currentUserRank, refetch: refetchLeaderboard } = useLeaderboard();
-  const { submit, isSubmitting } = useSubmitAttempt();
+  const { submit, isSubmitting, error: submitError, txHash } = useSubmitAttempt();
   const { approve, isApproving, error: approveError, reset: resetApprove } = useApprove();
   const { hasSufficientAllowance, isLoading: isCheckingAllowance, refetch: refetchAllowance } = useAllowance();
 
@@ -183,6 +183,8 @@ export default function PlayPage() {
             newRank={currentUserRank}
             previousRank={previousRank}
             isSubmitting={isSubmitting}
+            submitError={submitError}
+            txHash={txHash}
             onPlayAgain={handlePlayAgain}
             onClose={handleCloseResults}
           />

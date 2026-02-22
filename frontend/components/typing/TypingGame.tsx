@@ -138,6 +138,8 @@ export function TypingGame({
           ref={inputRef}
           value={input}
           onChange={handleInput}
+          onPaste={(e) => e.preventDefault()}
+          onDrop={(e) => e.preventDefault()}
           className="w-full h-32 p-6 bg-muted/50 border border-border rounded-xl font-mono text-lg
                      focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
                      resize-none placeholder:text-muted-foreground"

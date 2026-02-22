@@ -62,13 +62,13 @@ export async function POST(request: NextRequest) {
     const walletClient = createWalletClient({
       account: serverAccount,
       chain: arbitrumSepolia,
-      transport: http(process.env.NEXT_PUBLIC_RPC_URL),
+      transport: http(),
     });
 
     // Create public client for waiting for transaction
     const publicClient = createPublicClient({
       chain: arbitrumSepolia,
-      transport: http(process.env.NEXT_PUBLIC_RPC_URL),
+      transport: http(),
     });
 
     // Mint AUSD to user (1 AUSD = attempt fee)

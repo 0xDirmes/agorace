@@ -67,12 +67,12 @@ export async function POST(request: NextRequest) {
     const walletClient = createWalletClient({
       account: serverAccount,
       chain: arbitrumSepolia,
-      transport: http(process.env.NEXT_PUBLIC_RPC_URL),
+      transport: http(),
     });
 
     const publicClient = createPublicClient({
       chain: arbitrumSepolia,
-      transport: http(process.env.NEXT_PUBLIC_RPC_URL),
+      transport: http(),
     });
 
     const hash = await walletClient.writeContract({

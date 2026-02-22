@@ -16,7 +16,7 @@ export const config = createConfig({
   }),
   ssr: true,
   transports: {
-    [arbitrumSepolia.id]: http(process.env.NEXT_PUBLIC_RPC_URL),
+    [arbitrumSepolia.id]: http(),
   },
 });
 

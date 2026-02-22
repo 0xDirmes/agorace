@@ -1,14 +1,16 @@
 import { Route, Router } from "porto/server";
 import { NextRequest, NextResponse } from "next/server";
 
-const route = Router({ basePath: "/api/porto" }).route(
-  "/merchant",
-  Route.merchant({
-    address: process.env.MERCHANT_ADDRESS as `0x${string}`,
-    key: process.env.MERCHANT_PRIVATE_KEY as `0x${string}`,
-    sponsor: true,
-  }),
-);
+function getRoute() {
+  return Router({ basePath: "/api/porto" }).route(
+    "/merchant",
+    Route.merchant({
+      address: process.env.MERCHANT_ADDRESS as `0x${string}`,
+      key: process.env.MERCHANT_PRIVATE_KEY as `0x${string}`,
+      sponsor: true,
+    }),
+  );
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "https://id.porto.sh",
@@ -22,7 +24,7 @@ export async function OPTIONS() {
 }
 
 async function withCors(request: NextRequest) {
-  const response = await route.fetch(request);
+  const response = await getRoute().fetch(request);
   const newResponse = new NextResponse(response.body, response);
   for (const [key, value] of Object.entries(corsHeaders)) {
     newResponse.headers.set(key, value);

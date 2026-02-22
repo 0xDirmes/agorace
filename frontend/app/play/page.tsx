@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2, ExternalLink } from "lucide-react";
 
 import { TypingGame } from "@/components/typing/TypingGame";
 import { Results } from "@/components/typing/Results";
@@ -32,6 +32,7 @@ export default function PlayPage() {
   const [playState, setPlayState] = useState<PlayState>("checking");
   const [isFaucetLoading, setIsFaucetLoading] = useState(false);
   const [faucetError, setFaucetError] = useState<string | null>(null);
+  const [faucetTxHash, setFaucetTxHash] = useState<string | null>(null);
   const [gameResults, setGameResults] = useState<TypingStats | null>(null);
   const [previousRank, setPreviousRank] = useState<number | null>(null);
 
@@ -76,6 +77,7 @@ export default function PlayPage() {
     if (!address) return;
     setIsFaucetLoading(true);
     setFaucetError(null);
+    setFaucetTxHash(null);
     try {
       const res = await fetch("/api/faucet", {
         method: "POST",
@@ -84,11 +86,13 @@ export default function PlayPage() {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error ?? "Faucet request failed");
+      setFaucetTxHash(data.txHash);
+      setIsFaucetLoading(false);
       await refetchBalance();
-      setPlayState("checking");
+      // Brief pause so user can see the success + tx link before advancing
+      setTimeout(() => setPlayState("checking"), 2000);
     } catch (err) {
       setFaucetError(err instanceof Error ? err.message : "Faucet request failed");
-    } finally {
       setIsFaucetLoading(false);
     }
   }, [address, refetchBalance]);
@@ -178,28 +182,44 @@ export default function PlayPage() {
                   {faucetError && (
                     <p className="text-sm text-error">{faucetError}</p>
                   )}
-                  <div className="flex gap-3 justify-center">
-                    <button
-                      onClick={handleFaucetRequest}
-                      disabled={isFaucetLoading}
-                      className="btn-game-primary"
-                    >
-                      {isFaucetLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
-                          Requesting...
-                        </>
-                      ) : (
-                        "Request 10 testnet AUSD"
-                      )}
-                    </button>
-                    <button
-                      onClick={handleCancel}
-                      className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                  {faucetTxHash && (
+                    <div className="flex items-center justify-center gap-2 text-correct">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span className="text-sm">10 AUSD received!</span>
+                      <a
+                        href={`https://sepolia.arbiscan.io/tx/${faucetTxHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                      >
+                        View tx <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  )}
+                  {!faucetTxHash && (
+                    <div className="flex gap-3 justify-center">
+                      <button
+                        onClick={handleFaucetRequest}
+                        disabled={isFaucetLoading}
+                        className="btn-game-primary"
+                      >
+                        {isFaucetLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                            Requesting...
+                          </>
+                        ) : (
+                          "Request 10 testnet AUSD"
+                        )}
+                      </button>
+                      <button
+                        onClick={handleCancel}
+                        className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
               {approveError && (

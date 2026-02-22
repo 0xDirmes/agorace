@@ -193,23 +193,21 @@ export default function Home() {
         <div className="container mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <AgoraLogo />
           <p className="text-sm text-muted-foreground">
-            Built on Monad. All attempt fees go to the prize pool.
+            Built on Arbitrum. All attempt fees go to the prize pool.
           </p>
           <div className="flex items-center gap-4">
             <a
-              href="#"
+              href="https://github.com/0xDirmes/agora-type"
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              Docs
+              GitHub
             </a>
             <a
-              href="#"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Discord
-            </a>
-            <a
-              href="#"
+              href="https://x.com/Dirmes1"
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Twitter

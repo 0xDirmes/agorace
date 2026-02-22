@@ -11,6 +11,7 @@ import {
   ExternalLink,
   AlertCircle,
   CheckCircle2,
+  X,
 } from "lucide-react";
 
 interface ResultsProps {
@@ -62,9 +63,17 @@ export function Results({
       <motion.div
         initial={{ y: 50 }}
         animate={{ y: 0 }}
-        className="glass-card rounded-2xl p-8 max-w-md w-full"
+        className="glass-card rounded-2xl p-8 max-w-md w-full relative"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
         {/* Header */}
         <div className="text-center mb-8">
           {isNewPersonalBest ? (

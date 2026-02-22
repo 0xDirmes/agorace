@@ -13,21 +13,25 @@ import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { useSubmitAttempt } from "@/hooks/useSubmitAttempt";
 import { useApprove } from "@/hooks/useApprove";
 import { useAllowance } from "@/hooks/useAllowance";
+import { useWalletSetup } from "@/hooks/useWalletSetup";
 import { type TypingStats } from "@/lib/scoring";
 import { TYPING_PASSAGE } from "@/lib/constants";
 
-type PlayState = "checking" | "approving" | "playing" | "results";
+type PlayState = "checking" | "needs_funds" | "approving" | "playing" | "results";
 
 export default function PlayPage() {
   const router = useRouter();
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const { bestScore } = usePlayerState();
   const { currentUserRank, refetch: refetchLeaderboard } = useLeaderboard();
   const { submit, isSubmitting, error: submitError, txHash } = useSubmitAttempt();
   const { approve, isApproving, error: approveError, reset: resetApprove } = useApprove();
   const { hasSufficientAllowance, isLoading: isCheckingAllowance, refetch: refetchAllowance } = useAllowance();
+  const { hasEnoughBalance, status: balanceStatus, refetchBalance } = useWalletSetup();
 
   const [playState, setPlayState] = useState<PlayState>("checking");
+  const [isFaucetLoading, setIsFaucetLoading] = useState(false);
+  const [faucetError, setFaucetError] = useState<string | null>(null);
   const [gameResults, setGameResults] = useState<TypingStats | null>(null);
   const [previousRank, setPreviousRank] = useState<number | null>(null);
 
@@ -38,16 +42,18 @@ export default function PlayPage() {
     }
   }, [isConnected, router]);
 
-  // Check allowance on mount — skip approval if already approved
+  // Check balance + allowance on mount — gate gameplay on both
   useEffect(() => {
-    if (playState !== "checking" || isCheckingAllowance) return;
+    if (playState !== "checking" || balanceStatus === "checking" || isCheckingAllowance) return;
 
-    if (hasSufficientAllowance) {
+    if (!hasEnoughBalance) {
+      setPlayState("needs_funds");
+    } else if (hasSufficientAllowance) {
       setPlayState("playing");
     } else {
       setPlayState("approving");
     }
-  }, [playState, isCheckingAllowance, hasSufficientAllowance]);
+  }, [playState, balanceStatus, isCheckingAllowance, hasEnoughBalance, hasSufficientAllowance]);
 
   // Auto-trigger approve tx when entering approving state
   useEffect(() => {
@@ -66,6 +72,27 @@ export default function PlayPage() {
     }
   }, [approve]);
 
+  const handleFaucetRequest = useCallback(async () => {
+    if (!address) return;
+    setIsFaucetLoading(true);
+    setFaucetError(null);
+    try {
+      const res = await fetch("/api/faucet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error ?? "Faucet request failed");
+      await refetchBalance();
+      setPlayState("checking");
+    } catch (err) {
+      setFaucetError(err instanceof Error ? err.message : "Faucet request failed");
+    } finally {
+      setIsFaucetLoading(false);
+    }
+  }, [address, refetchBalance]);
+
   // Store previous rank when starting game
   useEffect(() => {
     if (playState === "playing") {
@@ -83,9 +110,10 @@ export default function PlayPage() {
       if (result.success) {
         refetchLeaderboard();
         refetchAllowance();
+        refetchBalance();
       }
     },
-    [submit, refetchLeaderboard, refetchAllowance]
+    [submit, refetchLeaderboard, refetchAllowance, refetchBalance]
   );
 
   const handleCancel = useCallback(() => {
@@ -115,7 +143,7 @@ export default function PlayPage() {
   return (
     <div className="min-h-screen bg-background">
       <AnimatePresence mode="wait">
-        {(playState === "checking" || playState === "approving") && (
+        {(playState === "checking" || playState === "needs_funds" || playState === "approving") && (
           <motion.div
             key="auth"
             initial={{ opacity: 0 }}
@@ -129,7 +157,7 @@ export default function PlayPage() {
                   <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
                   <p className="text-muted-foreground">
                     {playState === "checking"
-                      ? "Checking approval..."
+                      ? "Checking balance..."
                       : "Approving AUSD (one-time)..."}
                   </p>
                   {isApproving && (
@@ -138,6 +166,41 @@ export default function PlayPage() {
                     </p>
                   )}
                 </>
+              )}
+              {playState === "needs_funds" && (
+                <div className="space-y-4">
+                  <p className="text-foreground font-medium">
+                    You need AUSD to play
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Each game costs 1 AUSD. Request testnet tokens to get started.
+                  </p>
+                  {faucetError && (
+                    <p className="text-sm text-error">{faucetError}</p>
+                  )}
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      onClick={handleFaucetRequest}
+                      disabled={isFaucetLoading}
+                      className="btn-game-primary"
+                    >
+                      {isFaucetLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                          Requesting...
+                        </>
+                      ) : (
+                        "Request 10 testnet AUSD"
+                      )}
+                    </button>
+                    <button
+                      onClick={handleCancel}
+                      className="px-4 py-2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               )}
               {approveError && (
                 <div className="space-y-4">

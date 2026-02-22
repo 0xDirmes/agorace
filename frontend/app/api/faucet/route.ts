@@ -8,7 +8,10 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { arbitrumSepolia } from "@/lib/chains";
-import { AUSD_ADDRESS, ATTEMPT_FEE } from "@/lib/contracts";
+import { AUSD_ADDRESS } from "@/lib/contracts";
+
+// 10 AUSD (6 decimals)
+const FAUCET_AMOUNT = 10_000_000n;
 
 // Server-side wallet for sponsoring transactions
 const SERVER_PK = process.env.SERVER_PK;
@@ -17,17 +20,17 @@ if (!SERVER_PK) {
   console.warn("SERVER_PK not set - faucet API will fail");
 }
 
-// MockAUSD mint ABI
-const mockAusdMintAbi = [
+// ERC-20 transfer ABI
+const transferAbi = [
   {
-    name: "mint",
+    name: "transfer",
     type: "function",
     stateMutability: "nonpayable",
     inputs: [
-      { name: "_to", type: "address" },
-      { name: "_amount", type: "uint256" },
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
     ],
-    outputs: [],
+    outputs: [{ name: "", type: "bool" }],
   },
 ] as const;
 
@@ -71,12 +74,12 @@ export async function POST(request: NextRequest) {
       transport: http(),
     });
 
-    // Mint AUSD to user (1 AUSD = attempt fee)
+    // Transfer AUSD from server wallet to user
     const hash = await walletClient.writeContract({
       address: AUSD_ADDRESS,
-      abi: mockAusdMintAbi,
-      functionName: "mint",
-      args: [body.address, ATTEMPT_FEE],
+      abi: transferAbi,
+      functionName: "transfer",
+      args: [body.address, FAUCET_AMOUNT],
     });
 
     // Wait for transaction confirmation
@@ -95,12 +98,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       txHash: hash,
-      amount: ATTEMPT_FEE.toString(),
+      amount: FAUCET_AMOUNT.toString(),
     });
   } catch (error) {
     console.error("Faucet error:", error);
 
-    let errorMessage = "Failed to mint tokens";
+    let errorMessage = "Failed to send tokens";
     if (error instanceof Error) {
       errorMessage = error.message;
     }

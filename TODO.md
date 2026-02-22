@@ -90,11 +90,12 @@ frontend/
 - [x] Test score submission
 - [x] Verify leaderboard returns names
 - [ ] Test full E2E flow in browser:
-  - Connect wallet via Porto
-  - Enter name + Sign Up
+  - Connect wallet via Porto (dialog mode)
+  - Approve AUSD (via Porto Faucet for gas in local dev)
   - Play typing test
   - Submit score (server-sponsored)
-  - Verify leaderboard shows name
+  - Verify leaderboard updates
+  - Page reload auto-reconnects (dialog mode persistence)
 - [ ] Write settlement script for manual triggering
 - [ ] Deploy frontend to Vercel
 
@@ -107,12 +108,13 @@ frontend/
 3. ~~**Typing UI standalone** - Can test without blockchain~~ ✅ COMPLETE
 4. ~~**Connect everything** - Wire up the full flow~~ ✅ COMPLETE
 5. ~~**Redeploy contract** - Fix ownership bug~~ ✅ COMPLETE
-6. **End-to-end testing** - Validate on Monad testnet ← NEXT
+6. **End-to-end testing** - Validate on Arbitrum Sepolia ← NEXT (merchant sponsoring blocked locally, see session 2026-02-16)
 
 ---
 
 ## Future Improvements
 
+- [ ] **Merchant sponsoring (CORS/PNA blocked)** — Porto dialog mode's merchant endpoint is blocked by Chrome's Private Network Access policy in local dev. See session notes 2026-02-16 for full details. Currently using Porto's built-in Faucet as a workaround. Should work in production (non-localhost merchant URL).
 - [ ] **Gasless signup** - Players shouldn't need native tokens for gas
   - Porto fee sponsoring implemented but blocked by AUSD storage layout
   - See `docs/porto-balance-slot-research.md` for details
@@ -125,6 +127,35 @@ frontend/
 ---
 
 ## Session Notes
+
+### 2026-02-16 (Dialog Mode + CORS/PNA Investigation)
+
+**Completed:**
+- Switched Porto from `Mode.relay()` to dialog mode (Porto's default)
+- Removed `Mode` import from `frontend/lib/config.ts`
+- Simplified `ConnectButton.tsx` — removed localStorage create-vs-sign-in detection (dialog mode handles this in its own UI)
+- Added CORS + Private Network Access headers to merchant route (`frontend/app/api/porto/merchant/route.ts`)
+- Installed `mkcert` for locally-trusted HTTPS certificates
+
+**Issue: Merchant sponsoring blocked by Chrome PNA:**
+- Porto's dialog iframe (`https://id.porto.sh`) cannot fetch `https://localhost:3000/api/porto/merchant`
+- Chrome blocks as "loopback address space" access from a public origin
+- Tried: HTTPS (self-signed + mkcert), CORS headers with `Access-Control-Allow-Private-Network: true`
+- Server headers confirmed correct via curl — Chrome blocks at address-space level before evaluating headers
+- Porto only supports `merchantUrl` as a string URL (no function callback alternative)
+- **Workaround:** Using Porto's built-in Faucet button for approval tx gas
+- **Production fix:** Deploy to public domain (non-localhost) — PNA won't apply
+
+**Files changed:**
+- `frontend/lib/config.ts` — Removed `Mode.relay()` and `Mode` import
+- `frontend/components/wallet/ConnectButton.tsx` — Simplified `handleConnect` (no localStorage hack)
+- `frontend/app/api/porto/merchant/route.ts` — Added CORS/PNA headers wrapper (ready for production)
+
+**Key insight:** Dialog mode vs relay mode is a tradeoff:
+- Relay: merchant works locally, but no account persistence (wallet disconnects on reload)
+- Dialog: accounts persist (IndexedDB), but merchant blocked by PNA on localhost
+
+---
 
 ### 2026-02-14 (Pay-Per-Attempt + Remove Names)
 

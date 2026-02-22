@@ -94,7 +94,7 @@ A week-long typing tournament where players pay 1 AUSD per attempt via gasless a
 | Attempt submission | Server-sponsored | User doesn't pay gas, seamless UX |
 | Score calculation | Client-side (MVP) | Trusted for now, auditable later |
 | Winner calculation | On-chain iteration | Contract finds highest score at settlement |
-| Wallet | Porto | Passkeys, session keys, no extension |
+| Wallet | Porto (dialog mode) | Passkeys, session keys, no extension, persists accounts in IndexedDB |
 | Player identity | Formatted addresses | Prevents griefing via offensive names |
 
 ### Why EIP-2612 Permit (Not EIP-3009)
@@ -218,6 +218,14 @@ interface TypingResult {
 - [x] API route: simplified submitAttempt (no permit)
 - [x] Redeploy contract (v3.0.0)
 
+### Phase 1.7: Porto Dialog Mode + Account Persistence
+- [x] Switch from `Mode.relay()` to dialog mode (Porto's default)
+- [x] Simplify ConnectButton — dialog handles create-vs-sign-in UI
+- [x] Add CORS + Private Network Access headers to merchant route
+- [ ] **Merchant sponsoring via dialog mode** — blocked by Chrome PNA (see TODO.md session 2026-02-16)
+  - Workaround: Porto's built-in Faucet button for approval tx gas
+  - Expected to work in production (non-localhost merchant URL)
+
 ### Phase 2: Production Ready
 - [ ] Proper error handling + loading states
 - [ ] Transaction status feedback
@@ -272,6 +280,25 @@ NEXT_PUBLIC_CHAIN_ID=421614  # Arbitrum Sepolia
 **Operator cost per competition:**
 - 100 attempts = ~$0.20 in gas (approve is user-side via Porto)
 - 1000 attempts = ~$2.00 in gas
+
+## Known Issues
+
+### Chrome Private Network Access vs Merchant Sponsoring (Local Dev)
+
+Porto's dialog mode runs in an iframe hosted at `https://id.porto.sh`. When the iframe calls our merchant endpoint (`https://localhost:3000/api/porto/merchant`), Chrome blocks the request under its **Private Network Access** (PNA) policy — a public origin (`id.porto.sh`) cannot fetch a loopback address (`localhost`), regardless of CORS headers.
+
+**What we tried (all failed for localhost):**
+1. **HTTPS local dev** (`next dev --experimental-https`) — PNA still blocks; HTTPS doesn't change the address space classification
+2. **CORS + PNA response headers** (`Access-Control-Allow-Private-Network: true`) — Server returns correct headers (verified via curl), but Chrome rejects the preflight before evaluating them
+3. **mkcert** (locally-trusted certificate) — Chrome still classifies `localhost` as loopback address space, regardless of cert trust
+
+**Root cause:** Chrome's PNA enforcement for loopback is stricter than general private-network. The browser blocks at the address-space level, not at the TLS or CORS level. Porto only supports `merchantUrl` as a string URL (no function-based callback), so there's no way to proxy the merchant request through the parent page's same-origin context.
+
+**Current workaround:** Porto's built-in Faucet button in the dialog UI funds the approval transaction gas. The merchant endpoint code is in place and functional (tested via curl) — it's only blocked by Chrome's PNA in local dev.
+
+**Production:** This is a localhost-only problem. When deployed to a public domain (e.g., Vercel), the merchant endpoint will be at `https://agorace.example.com/api/porto/merchant`, which is a public-to-public request — no PNA restriction.
+
+**Previously tried relay mode** (`Mode.relay()`): The merchant endpoint worked in relay mode (relay routes the request differently), but relay mode doesn't persist accounts in the browser — every page reload disconnects the wallet. Dialog mode was chosen for persistence.
 
 ## Future Considerations
 

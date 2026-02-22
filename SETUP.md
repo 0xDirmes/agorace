@@ -15,9 +15,9 @@
 
 | Contract | Address |
 |----------|---------|
-| AgoRaceProxy | `0x9dB2392F558332e2D9De36b1F4E4c5118d6df740` |
-| AgoRaceImpl | `0xEed8Df5114aE2008F823d333b2186C3e05e69eE5` |
-| AgoRaceProxyAdmin | `0x16E11c7A79826f8549f4575548f23a7fD4Ca7659` |
+| AgoRaceProxy | `0x8136A6104839233D90a1df7bBeC4578b3B0b4bfB` |
+| AgoRaceImpl | `0x7552BCF0Cae0C528050427C250bf95c176da1674` |
+| AgoRaceProxyAdmin | `0xEb32d4e93f9D4ED6873BE6EEd0037B7fD04CAF01` |
 | AUSD (AgoraDollar) | `0xa9012a055bd4e0edff8ce09f960291c09d5322dc` |
 | AUSD Role Holder | `0x99B0E95Fa8F5C3b86e4d78ED715B475cFCcf6E97` |
 
@@ -51,13 +51,28 @@ forge script src/script/DeployAgoRace.s.sol --rpc-url $RPC_URL --broadcast
 - [ ] Verify contracts on block explorer (if supported)
 - [ ] Call `startCompetition()` to begin first competition
 
-### 3. Frontend Deployment
+### 3. Frontend Development (HTTPS Required)
+
+Porto dialog mode requires HTTPS for local dev. The dev script uses `--experimental-https`:
+
+```bash
+cd frontend
+npm run dev    # starts on https://localhost:3000
+```
+
+**Note:** Install `mkcert` (`brew install mkcert && mkcert -install`) for trusted local certs. Without it, Next.js falls back to self-signed certs.
+
+**Known limitation:** Porto's merchant sponsoring is blocked by Chrome's Private Network Access policy on localhost (see DESIGN.md "Known Issues"). Use Porto's built-in Faucet for approval tx gas during local dev.
+
+### 4. Frontend Deployment (Production)
 
 ```bash
 cd frontend
 npm run build
 vercel --prod
 ```
+
+Merchant sponsoring works in production — PNA only blocks localhost.
 
 ## Foundry Configuration
 
@@ -92,7 +107,7 @@ Set up environment variables first:
 ```bash
 export RPC_URL="https://arb-sepolia.g.alchemy.com/v2/<API_KEY>"
 export SERVER_PK="<your-private-key>"
-export AGORACE_ADDRESS="0x9dB2392F558332e2D9De36b1F4E4c5118d6df740"
+export AGORACE_ADDRESS="0x8136A6104839233D90a1df7bBeC4578b3B0b4bfB"
 export AUSD_ADDRESS="0xa9012a055bd4e0edff8ce09f960291c09d5322dc"
 ```
 

@@ -68,6 +68,20 @@ export const agoRaceAbi = [
     ],
     outputs: [],
   },
+  {
+    name: "settle",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
+  {
+    name: "startCompetition",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [],
+    outputs: [],
+  },
 ] as const;
 
 // AUSD ABI - balance + approval functions

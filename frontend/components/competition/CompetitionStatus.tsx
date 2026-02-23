@@ -1,6 +1,7 @@
 "use client";
 
 import { useCompetitionState } from "@/hooks/useCompetitionState";
+import { useAutoSettle } from "@/hooks/useAutoSettle";
 import { CountdownTimer } from "./CountdownTimer";
 import { PrizePool } from "./PrizePool";
 
@@ -11,6 +12,7 @@ interface CompetitionStatusProps {
 export function CompetitionStatus({ compact = false }: CompetitionStatusProps) {
   const { potFormatted, endDate, active, settled, playerCount, isLoading } =
     useCompetitionState();
+  const { isSettling, settleError } = useAutoSettle();
 
   if (isLoading) {
     return (
@@ -34,6 +36,38 @@ export function CompetitionStatus({ compact = false }: CompetitionStatusProps) {
         <p className="text-muted-foreground">
           The competition has been settled. Stay tuned for the next one!
         </p>
+      </div>
+    );
+  }
+
+  // Auto-settling in progress
+  if (isSettling) {
+    return (
+      <div className="glass-card rounded-2xl p-6 text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary/50 rounded-full mb-4">
+          <span className="w-4 h-4 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-secondary-foreground font-medium">
+            Settling
+          </span>
+        </div>
+        <p className="text-muted-foreground">
+          Settling competition &amp; starting next round...
+        </p>
+      </div>
+    );
+  }
+
+  // Settle failed
+  if (settleError) {
+    return (
+      <div className="glass-card rounded-2xl p-6 text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-2 bg-destructive/20 rounded-full mb-4">
+          <span className="w-2 h-2 bg-destructive rounded-full" />
+          <span className="text-sm text-destructive font-medium">
+            Settlement Failed
+          </span>
+        </div>
+        <p className="text-muted-foreground">{settleError}</p>
       </div>
     );
   }

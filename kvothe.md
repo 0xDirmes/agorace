@@ -1,14 +1,21 @@
-“IT WAS NIGHT AGAIN. The Waystone Inn lay in silence, and it was a silence of three parts.
-
-“The third silence was not an easy thing to notice. If you listened for an hour, you might begin to feel it in the wooden floor underfoot and in the rough, splintering barrels behind the bar. It was in the weight of the black stone hearth that held the heat of a long dead fire. It was in the slow back and forth of a white linen cloth rubbing along the grain of the bar. And it was in the hands of the man who stood there, polishing a stretch of mahogany that already gleamed in the lamplight.
-
+“It was night again. The Waystone Inn lay in silence, and it was a silence of three parts.
+The most obvious part was a hollow, echoing quiet, made by things that were lacking. If there had been a wind it would have sighed through the trees, set the inn’s sign creaking on its hooks, and brushed the silence down the road like trailing autumn leaves. If there had been a crowd, even a handful of men inside the inn, they would have filled the silence with conversation and laughter, the clatter and clamor one expects from a drinking house during the dark hours of night. If there had been music…but no, of course there was no music. In fact there were none of these things, and so the silence remained.”
 
 ==================================================================================
 
-THE NAME OF THE WIND - Epilogue
+“It was night again. The Waystone Inn lay in silence, and it was a silence of three parts.
+The first part was a hollow, echoing quiet, made by things that were lacking. If there had been horses stabled in the barn they would have stamped and champed and broken it to pieces. If there had been a crowd of guests, even a handful of guests bedded down for the night, their restless breathing and mingled snores would have gently thawed the silence like a warm spring wind. If there had been music…but no, of course there was no music. In fact there were none of these things, and so the silence remained.”
 
-“The third silence was not an easy thing to notice. If you listened for an hour, you might begin to feel it in the thick stone walls of the empty taproom and in the flat, grey metal of the sword that hung behind the bar. It was in the dim candlelight that filled an upstairs room with dancing shadows. It was in the mad pattern of a crumpled memoir that lay fallen and un-forgotten atop the desk. And it was in the hands of the man who sat there, pointedly ignoring the pages he had written and discarded long ago.”
+==================================================================================
 
+“It was night again. The Waystone Inn lay in silence, and it was a silence of three parts.
+The most obvious part was a hollow, echoing quiet, made by things that were lacking. If there had been a steady rain it would have drummed against the roof, sluiced the eaves, and washed the silence slowly out to sea. If there had been lovers in the beds of the inn, they would have sighed and moaned and shamed the silence into being on its way. If there had been music ... but no, of course there was no music. In fact there were none of these things, and so the silence remained.”
 
-“DAWN WAS COMING. The Waystone Inn lay in silence, and it was a silence of three parts.
+==================================================================================
+
+“Dawn was coming. The Waystone Inn lay in silence, and it was a silence of three parts.
 The most obvious part was a vast, echoing quiet made by things that were lacking. If there had been a storm, raindrops would have tapped and pattered against the selas vines behind the inn. Thunder would have muttered and rumbled and chased the silence down the road like fallen autumn leaves. If there had been travelers stirring in their rooms they would have stretched and grumbled the silence away like fraying, half-forgotten dreams. If there had been music . . . but no, of course there was no music. In fact there were none of these things, and so the silence remained.”
+
+===================================================================================
+
+It was still night in the middle of Newarre. The Waystone Inn lay in silence and it was a silence of three parts. The most obvious part was a vast echoing quiet made by things that were lacking. If the horizon had shown the slightest kiss of blue, the town would be stirring. There would be the crackle of kindling, the gentle murmur of water simmering for porridge or tea. The slow dewy hush of folk walking through the grass would have brushed the silence off the front steps of houses with the indifferent briskness of an old birch broom. If Newarre had been large enough to warrant watchmen, they would have trudged and grumbled the silence away like an unwelcome stranger. If there’d been music… but no of course there was no music. In fact there were none of these things, and so the silence remained.In the basement of the Waystone, there was the smell of coal smoke and seared iron.

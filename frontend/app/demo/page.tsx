@@ -6,13 +6,14 @@ import { AnimatePresence } from "framer-motion";
 import { TypingGame } from "@/components/typing/TypingGame";
 import { Results } from "@/components/typing/Results";
 import { type TypingStats } from "@/lib/scoring";
-import { TYPING_PASSAGE } from "@/lib/constants";
+import { getRandomPassage } from "@/lib/constants";
 
 type PlayState = "playing" | "results";
 
 // Demo page - no wallet required, just shows the typing game UI
 export default function DemoPage() {
   const [playState, setPlayState] = useState<PlayState>("playing");
+  const [passage, setPassage] = useState(getRandomPassage);
   const [gameResults, setGameResults] = useState<TypingStats | null>(null);
 
   const handleGameComplete = useCallback((stats: TypingStats) => {
@@ -28,6 +29,7 @@ export default function DemoPage() {
 
   const handlePlayAgain = useCallback(() => {
     setGameResults(null);
+    setPassage(getRandomPassage());
     setPlayState("playing");
   }, []);
 
@@ -42,7 +44,7 @@ export default function DemoPage() {
         {playState === "playing" && (
           <TypingGame
             key="game"
-            passage={TYPING_PASSAGE}
+            passage={passage}
             onComplete={handleGameComplete}
             onCancel={handleCancel}
           />

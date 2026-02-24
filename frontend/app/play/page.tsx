@@ -15,7 +15,7 @@ import { useApprove } from "@/hooks/useApprove";
 import { useAllowance } from "@/hooks/useAllowance";
 import { useWalletSetup } from "@/hooks/useWalletSetup";
 import { type TypingStats } from "@/lib/scoring";
-import { TYPING_PASSAGE } from "@/lib/constants";
+import { getRandomPassage } from "@/lib/constants";
 
 type PlayState = "checking" | "needs_funds" | "approving" | "playing" | "results";
 
@@ -30,6 +30,7 @@ export default function PlayPage() {
   const { hasEnoughBalance, status: balanceStatus, refetchBalance } = useWalletSetup();
 
   const [playState, setPlayState] = useState<PlayState>("checking");
+  const [passage, setPassage] = useState(getRandomPassage);
   const [isFaucetLoading, setIsFaucetLoading] = useState(false);
   const [faucetError, setFaucetError] = useState<string | null>(null);
   const [faucetTxHash, setFaucetTxHash] = useState<string | null>(null);
@@ -126,6 +127,7 @@ export default function PlayPage() {
 
   const handlePlayAgain = useCallback(() => {
     setGameResults(null);
+    setPassage(getRandomPassage());
     resetApprove();
     // Re-check allowance — after first approve, infinite approval should be set
     setPlayState("checking");
@@ -249,7 +251,7 @@ export default function PlayPage() {
         {playState === "playing" && (
           <TypingGame
             key="game"
-            passage={TYPING_PASSAGE}
+            passage={passage}
             onComplete={handleGameComplete}
             onCancel={handleCancel}
           />

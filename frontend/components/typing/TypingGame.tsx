@@ -6,10 +6,8 @@ import { RotateCcw, X } from "lucide-react";
 import { PassageDisplay } from "./PassageDisplay";
 import { LiveStats } from "./LiveStats";
 import { calculateTypingStats, type TypingStats } from "@/lib/scoring";
-import { TYPING_PASSAGE } from "@/lib/constants";
-
 interface TypingGameProps {
-  passage?: string;
+  passage: string;
   onComplete: (stats: TypingStats) => void;
   onCancel: () => void;
 }
@@ -17,7 +15,7 @@ interface TypingGameProps {
 type GameState = "ready" | "playing" | "finished";
 
 export function TypingGame({
-  passage = TYPING_PASSAGE,
+  passage,
   onComplete,
   onCancel,
 }: TypingGameProps) {

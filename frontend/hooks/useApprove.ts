@@ -3,8 +3,8 @@
 import { useState, useCallback } from "react";
 import { useAccount, useConfig, useSendCalls } from "wagmi";
 import { waitForCallsStatus } from "@wagmi/core";
-import { encodeFunctionData, maxUint256 } from "viem";
-import { AGORACE_ADDRESS, AUSD_ADDRESS, ausdAbi } from "@/lib/contracts";
+import { encodeFunctionData } from "viem";
+import { AGORACE_ADDRESS, AUSD_ADDRESS, ATTEMPT_FEE, ausdAbi } from "@/lib/contracts";
 
 interface UseApproveResult {
   approve: () => Promise<void>;
@@ -37,7 +37,7 @@ export function useApprove(): UseApproveResult {
             data: encodeFunctionData({
               abi: ausdAbi,
               functionName: "approve",
-              args: [AGORACE_ADDRESS, maxUint256],
+              args: [AGORACE_ADDRESS, ATTEMPT_FEE],
             }),
           },
         ],

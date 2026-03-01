@@ -1,22 +1,27 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.28;
 
-import { ContractManager, Contract, Deployment } from "deploy-framework/ContractManager.sol";
-import { IVersioned } from "deploy-framework/interfaces/IVersioned.sol";
 import { AgoraProxyAdmin } from "agora-contracts/proxy/AgoraProxyAdmin.sol";
 import {
     AgoraTransparentUpgradeableProxy,
     ConstructorParams as ProxyParams
 } from "agora-contracts/proxy/AgoraTransparentUpgradeableProxy.sol";
 import { AgoRace, ConstructorParams } from "contracts/AgoRace.sol";
+import { Contract, ContractManager, Deployment } from "deploy-framework/ContractManager.sol";
+import { IVersioned } from "deploy-framework/interfaces/IVersioned.sol";
 
 /// @title DeployAgoRace
 /// @notice Deployment script for AgoRace using the evm-deployments framework
 /// @dev Uses CREATE3 for deterministic deployment addresses across chains
 /// @dev Deploys: AgoRaceProxyAdmin + AgoRaceImpl + AgoRaceImplProxy
 contract DeployAgoRace is ContractManager {
+
     /// @notice Main deployment entry point with parameters
-    function run(address _owner, address _token, address _operator) external broadcaster {
+    function run(
+        address _owner,
+        address _token,
+        address _operator
+    ) external broadcaster {
         // 1. Deploy ProxyAdmin
         address proxyAdmin = _deployProxyAdmin();
 
@@ -25,8 +30,7 @@ contract DeployAgoRace is ContractManager {
 
         // 3. Deploy Proxy with init data
         bytes memory initData = abi.encodeWithSelector(
-            AgoRace.initialize.selector,
-            ConstructorParams({ initialOwner: _owner, token: _token, operator: _operator })
+            AgoRace.initialize.selector, ConstructorParams({ initialOwner: _owner, token: _token, operator: _operator })
         );
 
         deployProxy({
@@ -46,7 +50,8 @@ contract DeployAgoRace is ContractManager {
                 _constructorArgs: abi.encode(msg.sender),
                 _expectedVersion: IVersioned.Version({ major: 1, minor: 0, patch: 0 })
             })
-        ).deploymentAddress;
+        )
+        .deploymentAddress;
     }
 
     /// @notice Deploy the AgoRace implementation contract
@@ -58,7 +63,8 @@ contract DeployAgoRace is ContractManager {
                 _constructorArgs: "",
                 _expectedVersion: IVersioned.Version({ major: 3, minor: 1, patch: 0 })
             })
-        ).deploymentAddress;
+        )
+        .deploymentAddress;
     }
 
     //==============================================================================
@@ -76,6 +82,8 @@ contract DeployAgoRace is ContractManager {
         address _proxyAdminAddress,
         bytes memory _initData
     ) internal pure override returns (bytes memory) {
-        return abi.encode(ProxyParams({ logic: _implementation, proxyAdminAddress: _proxyAdminAddress, data: _initData }));
+        return
+            abi.encode(ProxyParams({ logic: _implementation, proxyAdminAddress: _proxyAdminAddress, data: _initData }));
     }
+
 }

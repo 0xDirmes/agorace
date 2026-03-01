@@ -62,7 +62,10 @@ interface IAgoRace {
     function settled() external view returns (bool);
     function startCompetition() external;
     function startTime() external view returns (uint256);
-    function submitAttempt(address _player, uint256 _score) external;
+    function submitAttempt(
+        address _player,
+        uint256 _score
+    ) external;
     function token() external view returns (address);
     function transferOwnership(
         address newOwner

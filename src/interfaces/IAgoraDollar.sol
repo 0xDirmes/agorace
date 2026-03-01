@@ -2,14 +2,17 @@
 pragma solidity ^0.8.4;
 
 library AgoraDollar {
+
     struct Version {
         uint256 major;
         uint256 minor;
         uint256 patch;
     }
+
 }
 
 library Erc20Privileged {
+
     struct BatchBurnFromParam {
         address burnFromAddress;
         uint256 value;
@@ -19,16 +22,20 @@ library Erc20Privileged {
         address receiverAddress;
         uint256 value;
     }
+
 }
 
 library StorageLib {
+
     struct Erc20AccountData {
         bool isFrozen;
         uint248 balance;
     }
+
 }
 
 interface IAgoraDollar {
+
     struct ConstructorParams {
         string name;
         string symbol;
@@ -125,18 +132,52 @@ interface IAgoraDollar {
     function PERMIT_TYPEHASH() external view returns (bytes32);
     function RECEIVE_WITH_AUTHORIZATION_TYPEHASH() external pure returns (bytes32);
     function TRANSFER_WITH_AUTHORIZATION_TYPEHASH() external pure returns (bytes32);
-    function accountData(address _account) external view returns (StorageLib.Erc20AccountData memory);
-    function allowance(address _owner, address _spender) external view returns (uint256);
-    function approve(address _spender, uint256 _value) external returns (bool);
-    function authorizationState(address _authorizer, bytes32 _nonce) external view returns (bool _isNonceUsed);
-    function balanceOf(address _account) external view returns (uint256);
-    function batchBurnFrom(Erc20Privileged.BatchBurnFromParam[] memory _burns) external;
-    function batchFreeze(address[] memory _addresses) external;
-    function batchMint(Erc20Privileged.BatchMintParam[] memory _mints) external;
-    function batchUnfreeze(address[] memory _addresses) external;
-    function burn(address _from, uint256 _amount) external returns (bool);
-    function cancelAuthorization(address _authorizer, bytes32 _nonce, uint8 _v, bytes32 _r, bytes32 _s) external;
-    function cancelAuthorization(address _authorizer, bytes32 _nonce, bytes memory _signature) external;
+    function accountData(
+        address _account
+    ) external view returns (StorageLib.Erc20AccountData memory);
+    function allowance(
+        address _owner,
+        address _spender
+    ) external view returns (uint256);
+    function approve(
+        address _spender,
+        uint256 _value
+    ) external returns (bool);
+    function authorizationState(
+        address _authorizer,
+        bytes32 _nonce
+    ) external view returns (bool _isNonceUsed);
+    function balanceOf(
+        address _account
+    ) external view returns (uint256);
+    function batchBurnFrom(
+        Erc20Privileged.BatchBurnFromParam[] memory _burns
+    ) external;
+    function batchFreeze(
+        address[] memory _addresses
+    ) external;
+    function batchMint(
+        Erc20Privileged.BatchMintParam[] memory _mints
+    ) external;
+    function batchUnfreeze(
+        address[] memory _addresses
+    ) external;
+    function burn(
+        address _from,
+        uint256 _amount
+    ) external returns (bool);
+    function cancelAuthorization(
+        address _authorizer,
+        bytes32 _nonce,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s
+    ) external;
+    function cancelAuthorization(
+        address _authorizer,
+        bytes32 _nonce,
+        bytes memory _signature
+    ) external;
     function decimals() external view returns (uint8);
     function domainSeparatorV4() external view returns (bytes32);
     function eip712Domain()
@@ -159,19 +200,44 @@ interface IAgoraDollar {
     function getFreezerRoleMembers() external view returns (address[] memory);
     function getMinterRoleMembers() external view returns (address[] memory);
     function getPauserRoleMembers() external view returns (address[] memory);
-    function getRoleMembers(string memory _role) external view returns (address[] memory);
-    function grantAccessControlManagerRole(address _member) external;
-    function grantBridgeBurnerRole(address _member) external;
-    function grantBridgeMinterRole(address _member) external;
-    function grantBurnerRole(address _member) external;
-    function grantFreezerRole(address _member) external;
-    function grantMinterRole(address _member) external;
-    function grantPauserRole(address _member) external;
-    function hasRole(string memory _role, address _member) external view returns (bool);
-    function hashTypedDataV4(bytes32 _structHash) external view returns (bytes32);
+    function getRoleMembers(
+        string memory _role
+    ) external view returns (address[] memory);
+    function grantAccessControlManagerRole(
+        address _member
+    ) external;
+    function grantBridgeBurnerRole(
+        address _member
+    ) external;
+    function grantBridgeMinterRole(
+        address _member
+    ) external;
+    function grantBurnerRole(
+        address _member
+    ) external;
+    function grantFreezerRole(
+        address _member
+    ) external;
+    function grantMinterRole(
+        address _member
+    ) external;
+    function grantPauserRole(
+        address _member
+    ) external;
+    function hasRole(
+        string memory _role,
+        address _member
+    ) external view returns (bool);
+    function hashTypedDataV4(
+        bytes32 _structHash
+    ) external view returns (bytes32);
     function implementation() external view returns (address);
-    function initialize(InitializeParams memory _params) external;
-    function isAccountFrozen(address _account) external view returns (bool);
+    function initialize(
+        InitializeParams memory _params
+    ) external;
+    function isAccountFrozen(
+        address _account
+    ) external view returns (bool);
     function isBridgingPaused() external view returns (bool);
     function isBurnFromPaused() external view returns (bool);
     function isFreezingPaused() external view returns (bool);
@@ -183,9 +249,14 @@ interface IAgoraDollar {
     function isTransferPaused() external view returns (bool);
     function isTransferUpgraded() external view returns (bool);
     function isTransferWithAuthorizationUpgraded() external view returns (bool);
-    function mint(address _to, uint256 _amount) external returns (bool);
+    function mint(
+        address _to,
+        uint256 _amount
+    ) external returns (bool);
     function name() external view returns (string memory);
-    function nonces(address _account) external view returns (uint256 _nonce);
+    function nonces(
+        address _account
+    ) external view returns (uint256 _nonce);
     function permit(
         address _owner,
         address _spender,
@@ -223,28 +294,71 @@ interface IAgoraDollar {
         bytes32 _r,
         bytes32 _s
     ) external;
-    function revokeAccessControlManagerRole(address _member) external;
-    function revokeBridgeBurnerRole(address _member) external;
-    function revokeBridgeMinterRole(address _member) external;
-    function revokeBurnerRole(address _member) external;
-    function revokeFreezerRole(address _member) external;
-    function revokeMinterRole(address _member) external;
-    function revokePauserRole(address _member) external;
-    function setIsBridgingPaused(bool _isPaused) external;
-    function setIsBurnFromPaused(bool _isPaused) external;
-    function setIsFreezingPaused(bool _isPaused) external;
-    function setIsMintPaused(bool _isPaused) external;
-    function setIsMsgSenderCheckEnabled(bool _isEnabled) external;
-    function setIsReceiveWithAuthorizationUpgraded(bool _isUpgraded) external;
-    function setIsSignatureVerificationPaused(bool _isPaused) external;
-    function setIsTransferFromUpgraded(bool _isUpgraded) external;
-    function setIsTransferPaused(bool _isPaused) external;
-    function setIsTransferUpgraded(bool _isUpgraded) external;
-    function setIsTransferWithAuthorizationUpgraded(bool _isUpgraded) external;
+    function revokeAccessControlManagerRole(
+        address _member
+    ) external;
+    function revokeBridgeBurnerRole(
+        address _member
+    ) external;
+    function revokeBridgeMinterRole(
+        address _member
+    ) external;
+    function revokeBurnerRole(
+        address _member
+    ) external;
+    function revokeFreezerRole(
+        address _member
+    ) external;
+    function revokeMinterRole(
+        address _member
+    ) external;
+    function revokePauserRole(
+        address _member
+    ) external;
+    function setIsBridgingPaused(
+        bool _isPaused
+    ) external;
+    function setIsBurnFromPaused(
+        bool _isPaused
+    ) external;
+    function setIsFreezingPaused(
+        bool _isPaused
+    ) external;
+    function setIsMintPaused(
+        bool _isPaused
+    ) external;
+    function setIsMsgSenderCheckEnabled(
+        bool _isEnabled
+    ) external;
+    function setIsReceiveWithAuthorizationUpgraded(
+        bool _isUpgraded
+    ) external;
+    function setIsSignatureVerificationPaused(
+        bool _isPaused
+    ) external;
+    function setIsTransferFromUpgraded(
+        bool _isUpgraded
+    ) external;
+    function setIsTransferPaused(
+        bool _isPaused
+    ) external;
+    function setIsTransferUpgraded(
+        bool _isUpgraded
+    ) external;
+    function setIsTransferWithAuthorizationUpgraded(
+        bool _isUpgraded
+    ) external;
     function symbol() external view returns (string memory);
     function totalSupply() external view returns (uint256);
-    function transfer(address _to, uint256 _value) external returns (bool);
-    function transferFrom(address _from, address _to, uint256 _value) external returns (bool);
+    function transfer(
+        address _to,
+        uint256 _value
+    ) external returns (bool);
+    function transferFrom(
+        address _from,
+        address _to,
+        uint256 _value
+    ) external returns (bool);
     function transferWithAuthorization(
         address _from,
         address _to,
@@ -266,4 +380,5 @@ interface IAgoraDollar {
         bytes32 _s
     ) external;
     function version() external pure returns (AgoraDollar.Version memory _version);
+
 }

@@ -12,11 +12,11 @@ pragma solidity 0.8.28;
 // ============================ AgoRace =============================
 // ====================================================================
 
+import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import { Erc1967Implementation } from "agora-contracts/proxy/Erc1967Implementation.sol";
+import { Erc1967Implementation } from "contracts/vendor/Erc1967Implementation.sol";
 
 import { IAgoraDollar } from "src/interfaces/IAgoraDollar.sol";
 
@@ -247,7 +247,10 @@ contract AgoRace is Initializable, OwnableUpgradeable, Erc1967Implementation {
     /// @dev Used to restore scores after a competition restart. Owner only.
     /// @param _player The player's address
     /// @param _score The score to set (WPM * accuracy, scaled by 100)
-    function adminSetScore(address _player, uint256 _score) external onlyOwner whenActive {
+    function adminSetScore(
+        address _player,
+        uint256 _score
+    ) external onlyOwner whenActive {
         PlayerStorage storage _ps = _getPlayerStorage();
         PlayerState storage _state = _ps.playerState[_player];
 
@@ -357,11 +360,7 @@ contract AgoRace is Initializable, OwnableUpgradeable, Erc1967Implementation {
     /// @dev Returns unsorted data. Frontend should sort by score descending.
     /// @return _players Array of player addresses
     /// @return _scores Array of corresponding best scores
-    function getLeaderboard()
-        external
-        view
-        returns (address[] memory _players, uint256[] memory _scores)
-    {
+    function getLeaderboard() external view returns (address[] memory _players, uint256[] memory _scores) {
         PlayerStorage storage _s = _getPlayerStorage();
         uint256 _count = _s.players.length;
         _players = new address[](_count);

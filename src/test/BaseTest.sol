@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import { VmHelper } from "agora-std/VmHelper.sol";
+import { VmHelper } from "./vendor/VmHelper.sol";
 import { Test, console2 as console } from "forge-std/Test.sol";
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { AgoRace, ConstructorParams } from "contracts/AgoRace.sol";
 import { IAgoraDollar } from "src/interfaces/IAgoraDollar.sol";
 
@@ -94,7 +94,10 @@ contract BaseTest is Test, VmHelper {
     /// @notice Mints AUSD to a player via the real role holder
     /// @param _to The address to mint tokens to
     /// @param _amount The amount of tokens to mint
-    function _mintAUSD(address _to, uint256 _amount) internal {
+    function _mintAUSD(
+        address _to,
+        uint256 _amount
+    ) internal {
         vm.prank(AUSD_ROLE_HOLDER);
         token.mint(_to, _amount);
     }
@@ -103,7 +106,11 @@ contract BaseTest is Test, VmHelper {
     /// @param _player The player's address
     /// @param _playerPk The player's private key (unused — kept for callsite compatibility)
     /// @param _score The score to submit
-    function _submitAttempt(address _player, uint256 _playerPk, uint256 _score) internal {
+    function _submitAttempt(
+        address _player,
+        uint256 _playerPk,
+        uint256 _score
+    ) internal {
         _mintAUSD(_player, ATTEMPT_FEE);
         vm.prank(_player);
         IERC20(address(token)).approve(address(agoRace), ATTEMPT_FEE);

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import { IAgoRace } from "interfaces/IAgoRace.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IAgoRace } from "interfaces/IAgoRace.sol";
 
 import "../BaseTest.sol";
 
@@ -35,13 +35,9 @@ contract TestSettle is BaseTest {
         assertTrue(agoRace.settled(), "/// THEN: competition is marked settled");
         assertEq({ err: "/// THEN: pot is emptied", left: 0, right: agoRace.pot() });
         assertEq({
-            err: "/// THEN: bob receives prize",
-            left: _expectedPrize,
-            right: IERC20(address(token)).balanceOf(bob)
+            err: "/// THEN: bob receives prize", left: _expectedPrize, right: IERC20(address(token)).balanceOf(bob)
         });
-        assertEq({
-            err: "/// THEN: alice receives nothing", left: 0, right: IERC20(address(token)).balanceOf(alice)
-        });
+        assertEq({ err: "/// THEN: alice receives nothing", left: 0, right: IERC20(address(token)).balanceOf(alice) });
     }
 
     function test_SettleWithSinglePlayer() public {
@@ -76,9 +72,7 @@ contract TestSettle is BaseTest {
 
         // Alice wins ties because she played first (first in players array with max score)
         assertEq({
-            err: "/// THEN: alice wins the tie",
-            left: _expectedPrize,
-            right: IERC20(address(token)).balanceOf(alice)
+            err: "/// THEN: alice wins the tie", left: _expectedPrize, right: IERC20(address(token)).balanceOf(alice)
         });
     }
 

@@ -31,12 +31,8 @@ remappings = [
   "script/=src/script/",
   "forge-std/=node_modules/forge-std/src/",
   "ds-test/=node_modules/ds-test/src/",
-  "agora-std/=lib/agora-standard-solidity/src/",
   "@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/",
-  "@openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/",
-  "deploy-framework/=lib/evm-deployments/src/deploy-framework/",
-  "createx/=lib/evm-deployments/node_modules/createx/src/",
-  "agora-contracts/=lib/evm-deployments/node_modules/agora-contracts/src/contracts/"
+  "@openzeppelin/contracts-upgradeable/=node_modules/@openzeppelin/contracts-upgradeable/"
 ]
 
 fs_permissions = [

@@ -53,6 +53,10 @@ export function TypingGame({
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const value = e.target.value;
 
+      // Block bulk insertions (undo, autocomplete, etc.)
+      // Legitimate typing only adds 1 character at a time
+      if (value.length > input.length + 1) return;
+
       // Start game on first keystroke
       if (gameState === "ready" && value.length > 0) {
         setGameState("playing");

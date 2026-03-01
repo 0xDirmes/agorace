@@ -247,9 +247,9 @@ interface TypingResult {
 
 | Contract | Address |
 |----------|---------|
-| AgoRaceProxy | `0x8136A6104839233D90a1df7bBeC4578b3B0b4bfB` |
-| AgoRaceImpl | `0x7552BCF0Cae0C528050427C250bf95c176da1674` |
-| AgoRaceProxyAdmin | `0xEb32d4e93f9D4ED6873BE6EEd0037B7fD04CAF01` |
+| AgoRaceProxy | `0x5e3b4d6B110428E716DE572786Ed85d301bdd93a` |
+| AgoRaceImpl | `0x60fC94Ee5efa8FAFF8c8Cd163f45Af19E6316a05` |
+| AgoRaceProxyAdmin | `0xEa1447B8D41474eE4BDfF1C1fAa80Fb5C9F8e958` |
 | AUSD (AgoraDollar) | `0xa9012a055bd4e0edff8ce09f960291c09d5322dc` |
 | AUSD Role Holder | `0x99B0E95Fa8F5C3b86e4d78ED715B475cFCcf6E97` |
 

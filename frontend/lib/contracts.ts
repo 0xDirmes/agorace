@@ -2,7 +2,7 @@ import { type Address } from "viem";
 
 // Contract addresses from environment (Arbitrum Sepolia)
 export const AGORACE_ADDRESS = (process.env.NEXT_PUBLIC_AGORACE_ADDRESS ||
-  "0x8136A6104839233D90a1df7bBeC4578b3B0b4bfB") as Address;
+  "0x5e3b4d6B110428E716DE572786Ed85d301bdd93a") as Address;
 export const AUSD_ADDRESS = (process.env.NEXT_PUBLIC_AUSD_ADDRESS ||
   "0xa9012a055bd4e0edff8ce09f960291c09d5322dc") as Address;
 

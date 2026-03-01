@@ -39,8 +39,8 @@ npm run dev
 
 | Contract | Address (Arbitrum Sepolia) |
 |----------|---------------------------|
-| AgoRace (Proxy) | `0x8136A6104839233D90a1df7bBeC4578b3B0b4bfB` |
-| AgoRace (Impl) | `0x7552BCF0Cae0C528050427C250bf95c176da1674` |
+| AgoRace (Proxy) | `0x5e3b4d6B110428E716DE572786Ed85d301bdd93a` |
+| AgoRace (Impl) | `0x60fC94Ee5efa8FAFF8c8Cd163f45Af19E6316a05` |
 | AUSD | `0xa9012a055bd4e0edff8ce09f960291c09d5322dc` |
 
 ## Docs

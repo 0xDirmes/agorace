@@ -56,7 +56,7 @@ contract DeployAgoRace is ContractManager {
                 _name: "AgoRaceImpl",
                 _creationCode: type(AgoRace).creationCode,
                 _constructorArgs: "",
-                _expectedVersion: IVersioned.Version({ major: 3, minor: 0, patch: 0 })
+                _expectedVersion: IVersioned.Version({ major: 3, minor: 1, patch: 0 })
             })
         ).deploymentAddress;
     }

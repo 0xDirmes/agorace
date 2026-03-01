@@ -56,9 +56,6 @@ contract AgoRace is Initializable, OwnableUpgradeable, Erc1967Implementation {
     /// @notice Thrown when attempting to settle an already settled competition
     error AlreadySettled();
 
-    /// @notice Thrown when attempting to start a new competition while one is active
-    error CompetitionActive();
-
     /// @notice Thrown when an action requires an active competition but none is running
     error CompetitionNotActive();
 
@@ -211,9 +208,14 @@ contract AgoRace is Initializable, OwnableUpgradeable, Erc1967Implementation {
     //==============================================================================
 
     /// @notice The ```startCompetition``` function starts a new competition
-    /// @dev Clears previous competition state. Owner only.
+    /// @dev Clears previous competition state. Refunds any remaining pot to owner. Owner only.
     function startCompetition() external onlyOwner {
-        if (startTime != 0 && !settled) revert CompetitionActive();
+        // Refund any remaining pot from unsettled competitions
+        if (pot > 0) {
+            uint256 _remainingPot = pot;
+            pot = 0;
+            IERC20(address(token)).safeTransfer(owner(), _remainingPot);
+        }
 
         // Reset state for new competition
         startTime = block.timestamp;
@@ -239,6 +241,24 @@ contract AgoRace is Initializable, OwnableUpgradeable, Erc1967Implementation {
         if (_operator == address(0)) revert ZeroAddress();
         operator = _operator;
         emit OperatorUpdated(_operator);
+    }
+
+    /// @notice The ```adminSetScore``` function sets a player's score without pulling payment
+    /// @dev Used to restore scores after a competition restart. Owner only.
+    /// @param _player The player's address
+    /// @param _score The score to set (WPM * accuracy, scaled by 100)
+    function adminSetScore(address _player, uint256 _score) external onlyOwner whenActive {
+        PlayerStorage storage _ps = _getPlayerStorage();
+        PlayerState storage _state = _ps.playerState[_player];
+
+        if (!_state.hasPlayed) {
+            _state.hasPlayed = true;
+            _ps.players.push(_player);
+        }
+
+        if (_score > _state.bestScore) _state.bestScore = uint32(_score);
+
+        emit AttemptSubmitted(_player, _score, _state.bestScore, pot);
     }
 
     /// @notice The ```settle``` function settles the competition and pays the winner
@@ -376,7 +396,7 @@ contract AgoRace is Initializable, OwnableUpgradeable, Erc1967Implementation {
     /// @notice The ```version``` function returns the contract version
     /// @return _version The version struct
     function version() public pure returns (Version memory _version) {
-        _version = Version({ major: 3, minor: 0, patch: 0 });
+        _version = Version({ major: 3, minor: 1, patch: 0 });
     }
 
 }

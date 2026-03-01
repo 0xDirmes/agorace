@@ -62,3 +62,5 @@ jobs:
 
       - name: Test
         run: npm run test
+        env:
+          ARBITRUM_SEPOLIA_RPC_URL: https://sepolia-rollup.arbitrum.io/rpc

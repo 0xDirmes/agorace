@@ -23,12 +23,13 @@ export function TypingGame({
   const [gameState, setGameState] = useState<GameState>("ready");
   const [startTime, setStartTime] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
+  const [inputKey, setInputKey] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Focus input on mount
+  // Focus input on mount and after reset
   useEffect(() => {
     inputRef.current?.focus();
-  }, []);
+  }, [inputKey]);
 
   // Timer effect
   useEffect(() => {
@@ -52,10 +53,6 @@ export function TypingGame({
   const handleInput = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const value = e.target.value;
-
-      // Block bulk insertions (undo, autocomplete, etc.)
-      // Legitimate typing only adds 1 character at a time
-      if (value.length > input.length + 1) return;
 
       // Start game on first keystroke
       if (gameState === "ready" && value.length > 0) {
@@ -85,7 +82,7 @@ export function TypingGame({
     setGameState("ready");
     setStartTime(null);
     setCurrentTime(0);
-    inputRef.current?.focus();
+    setInputKey((k) => k + 1);
   };
 
   const progress = (input.length / passage.length) * 100;
@@ -137,6 +134,7 @@ export function TypingGame({
 
         {/* Input Area */}
         <textarea
+          key={inputKey}
           ref={inputRef}
           value={input}
           onChange={handleInput}

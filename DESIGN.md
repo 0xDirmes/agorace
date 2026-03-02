@@ -1,4 +1,4 @@
-# Agora Type - Design Document
+# AgoRace - Design Document
 
 Weekly typing competition with on-chain prize pool. Fully on-chain architecture with Porto for seamless UX.
 
@@ -12,25 +12,29 @@ A week-long typing tournament where players pay 1 AUSD per attempt via gasless a
 |-----------|-------|
 | Attempt fee | 1 AUSD per attempt (gasless via Porto approve) |
 | Duration | 7 days (hardcoded) |
-| Text | Same passage for entire competition |
+| Text | Random passage from pool, different each attempt |
 | Scoring | `WPM * accuracy%` (e.g., 80 WPM at 95% = 76.0) |
 | Winner | Single winner, takes 100% of pot |
 | Ties | First player to reach the highest score wins |
-| Settlement | Owner-triggered at competition end |
+| Settlement | Auto-triggered on first visit after competition ends |
 
 ## User Flow
 
 ```
 1. Connect wallet via Porto (passkey-based, no extension needed)
-2. View leaderboard + current pot size + time remaining
+2. View leaderboard + current pot size + countdown timer
 3. Click "Start Typing"
-   -> If no AUSD allowance: approve AUSD (one-time tx via Porto, gas-sponsored) -> game starts
+   -> If no AUSD balance: request from faucet (testnet only)
+   -> If no AUSD allowance: approve exact amount via Porto (gas-sponsored)
    -> If allowance exists: skip straight to game
-4. Type the passage as fast and accurately as possible
+4. Type a random passage as fast and accurately as possible
+   -> Live WPM, accuracy, and score displayed in header
+   -> Per-character highlighting (green = correct, red = error)
+   -> Animated progress bar
 5. Score calculated -> server submits tx: submitAttempt(player, score)
-6. See results: WPM, accuracy, final score, leaderboard position
-7. Play again (no approval needed on subsequent games!)
-8. At week end: owner settles, winner receives entire pot
+6. See results: WPM, accuracy, final score, leaderboard position, tx link
+7. Play again with a new random passage
+8. At week end: auto-settle on first visit, winner receives entire pot
 ```
 
 ## Architecture
@@ -43,10 +47,10 @@ A week-long typing tournament where players pay 1 AUSD per attempt via gasless a
 |                                                              |
 |  +--------------+  +--------------+  +------------------+   |
 |  |  Typing UI   |  |  Leaderboard |  |  Porto Wallet    |   |
-|  |  - Passage   |  |  - Rankings  |  |  - Connect       |   |
+|  |  - Passages  |  |  - Rankings  |  |  - Connect       |   |
 |  |  - Input     |  |  - Your best |  |  - Approve AUSD  |   |
-|  |  - Live WPM  |  |  - Pot size  |  |    (one-time tx)  |   |
-|  |  - Accuracy  |  |  - Time left |  |  - Status        |   |
+|  |  - Live WPM  |  |  - Pot size  |  |  - Faucet        |   |
+|  |  - Accuracy  |  |  - Countdown |  |  - Status        |   |
 |  +--------------+  +--------------+  +------------------+   |
 +-------------------------------------------------------------+
                               |
@@ -59,13 +63,20 @@ A week-long typing tournament where players pay 1 AUSD per attempt via gasless a
 |    - Call AgoRace.submitAttempt(player, score) (sponsored)   |
 |    - Return tx hash                                          |
 |                                                              |
+|  POST /api/settle                                            |
+|    - Settle expired competition + start new round            |
+|    - Called automatically by frontend on first visit          |
+|                                                              |
+|  POST /api/faucet                                            |
+|    - Send 10 testnet AUSD to requesting address              |
+|                                                              |
 +-------------------------------------------------------------+
                               |
                               v
 +-------------------------------------------------------------+
-|                    Smart Contract (On-Chain)                  |
+|              Smart Contract — AgoRace v3.1.0                 |
 |                                                              |
-|  State:                                                      |
+|  State (ERC7201 namespaced storage):                         |
 |    - playerState: mapping(address => PlayerState)            |
 |        - bestScore: uint32                                   |
 |        - hasPlayed: bool                                     |
@@ -74,13 +85,19 @@ A week-long typing tournament where players pay 1 AUSD per attempt via gasless a
 |    - startTime, endTime, settled                             |
 |                                                              |
 |  Functions:                                                  |
-|    - submitAttempt(player, score) -> pulls payment via       |
-|      safeTransferFrom (requires prior approve), records score|
-|    - settle() -> owner pays winner                           |
-|    - getLeaderboard() -> returns players, scores             |
+|    - submitAttempt(player, score)  [operator]                |
+|    - settle()                      [owner]                   |
+|    - startCompetition()            [owner]                   |
+|    - adminSetScore(player, score)  [owner]                   |
+|    - setOperator(address)          [owner]                   |
+|    - getLeaderboard() -> (players[], scores[])               |
+|    - getState() -> (start, end, settled, pot, token, op)     |
+|    - getPlayerState(player) -> (bestScore, hasPlayed)        |
 |                                                              |
 |  Events:                                                     |
 |    - AttemptSubmitted(player, score, bestScore, pot)         |
+|    - CompetitionStarted(startTime, endTime)                  |
+|    - OperatorUpdated(newOperator)                            |
 |    - Settled(winner, prize)                                  |
 +-------------------------------------------------------------+
 ```
@@ -90,12 +107,14 @@ A week-long typing tournament where players pay 1 AUSD per attempt via gasless a
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Data storage | Fully on-chain | Public verifiability, no DB needed |
-| Payment | Direct approve + transferFrom | Porto handles EIP-7702 delegation + gas sponsoring |
+| Payment | Exact-amount approve + transferFrom | Porto handles EIP-7702 delegation + gas sponsoring |
 | Attempt submission | Server-sponsored | User doesn't pay gas, seamless UX |
 | Score calculation | Client-side (MVP) | Trusted for now, auditable later |
 | Winner calculation | On-chain iteration | Contract finds highest score at settlement |
 | Wallet | Porto (dialog mode) | Passkeys, session keys, no extension, persists accounts in IndexedDB |
 | Player identity | Formatted addresses | Prevents griefing via offensive names |
+| Settlement | Auto-triggered by frontend | No manual owner intervention needed between rounds |
+| Competition restart | Contract supports restart + pot refund | Owner can restart mid-competition if needed |
 
 ### Why EIP-2612 Permit (Not EIP-3009)
 
@@ -107,7 +126,7 @@ EIP-3009 `receiveWithAuthorization` was the original approach, but is **incompat
 
 AUSD's `permit` function uses `SignatureCheckerLib.isValidSignatureNow` which supports **both** `ecrecover` AND EIP-1271. Since Porto accounts implement EIP-1271 via their EIP-7702 delegate, the `permit(address,address,uint256,uint256,bytes)` overload works with Porto's wrapped P256 signatures.
 
-**Better UX too:** sign once (infinite approval), play forever — vs EIP-3009 which required signing before every game.
+**Current flow:** Frontend approves the exact attempt fee (1 AUSD) rather than infinite allowance. The `useAllowance` hook checks if allowance >= ATTEMPT_FEE before each game, and `useApprove` requests approval for the exact amount if needed.
 
 ## Tech Stack
 
@@ -115,9 +134,10 @@ AUSD's `permit` function uses `SignatureCheckerLib.isValidSignatureNow` which su
 |-------|------------|-----------|
 | Framework | Next.js 14 (App Router) | Fullstack, Vercel-native |
 | Wallet | Porto | Passkey auth, session keys, works with wagmi/viem |
-| Web3 | wagmi v2 + viem | Porto-compatible, typed, modern |
-| Contracts | Foundry | Fast tests, modern tooling |
+| Web3 | wagmi v3 + viem v2 | Porto-compatible, typed, modern |
+| Contracts | Solidity 0.8.28, Foundry | Fast tests, modern tooling |
 | Styling | Tailwind CSS | Rapid iteration |
+| Animations | Framer Motion | Spring-based transitions, AnimatePresence |
 | Chain | Arbitrum Sepolia | Porto-compatible, fast L2 testnet |
 | Hosting | Vercel | Easy deployment, edge functions |
 
@@ -125,9 +145,11 @@ AUSD's `permit` function uses `SignatureCheckerLib.isValidSignatureNow` which su
 
 ## Smart Contract
 
-### AgoRace.sol
+### AgoRace.sol (v3.1.0)
 
-The contract uses a pay-per-attempt model via `approve` + `safeTransferFrom`. Players approve infinite AUSD allowance once (via Porto's gas-sponsored tx), and the server calls `submitAttempt` which pulls payment automatically.
+The contract uses a pay-per-attempt model via `approve` + `safeTransferFrom`. Players approve AUSD via Porto's gas-sponsored tx, and the server calls `submitAttempt` which pulls payment automatically.
+
+Uses ERC-1967 transparent upgradeable proxy with ERC7201 namespaced storage.
 
 ```solidity
 // Key functions:
@@ -150,6 +172,12 @@ function submitAttempt(
     // Update best score if improved
     if (_score > _state.bestScore) _state.bestScore = uint32(_score);
 }
+
+/// @notice Start a new competition (restarts if one is active, refunds pot)
+function startCompetition() external onlyOwner { ... }
+
+/// @notice Set a player's score without payment (for score restoration)
+function adminSetScore(address _player, uint256 _score) external onlyOwner whenActive { ... }
 ```
 
 ### Score Encoding
@@ -163,7 +191,7 @@ Scores are stored as integers scaled by 100 to preserve 2 decimal places:
 ### Scoring Logic (Client-Side)
 
 ```typescript
-interface TypingResult {
+interface TypingStats {
   wpm: number;           // Words per minute (word = 5 characters)
   accuracy: number;      // Percentage (0-100)
   score: number;         // wpm * accuracy / 100
@@ -174,16 +202,31 @@ interface TypingResult {
 }
 ```
 
+### Typing Passages
+
+5 variations of the opening passage from *The Name of the Wind* (Patrick Rothfuss), randomized per attempt via `getRandomPassage()`. All passages use standard ASCII characters (no Unicode ellipsis or special characters).
+
+### Anti-Cheat Measures
+
+| Measure | Implementation |
+|---------|---------------|
+| Paste prevention | `onPaste={(e) => e.preventDefault()}` on textarea |
+| Drag-and-drop prevention | `onDrop={(e) => e.preventDefault()}` on textarea |
+| Copy prevention | `onCopy` prevented on PassageDisplay |
+| Ctrl+Z exploit prevention | Textarea remounted via React `key` prop on reset (destroys browser undo history) |
+| Autocomplete disabled | `spellCheck={false}` + `autoComplete="off"` + `autoCorrect="off"` + `autoCapitalize="off"` |
+
 ### UI States
 
 1. **Not Connected** - Show Porto "Connect" button
 2. **Connected, Active Competition** - Show "Start Typing" button
-3. **Checking** - Reading allowance from chain
-4. **Approving (one-time)** - Sending approve tx via Porto (gas-sponsored) — skipped on subsequent plays
-5. **Playing** - Show typing interface with live WPM/accuracy
-6. **Submitting** - Show "Recording score..." (server submitting tx)
-7. **Completed** - Show results, leaderboard position, "Play Again" button
-8. **Competition Ended** - Show final leaderboard, winner announcement
+3. **Checking** - Reading allowance and balance from chain
+4. **Needs Funds** - Show faucet button (testnet)
+5. **Approving** - Sending exact-amount approve tx via Porto (gas-sponsored)
+6. **Playing** - Typing interface with live WPM/accuracy, per-character highlighting, progress bar
+7. **Submitting** - "Recording score..." spinner (server submitting tx)
+8. **Completed** - Results with WPM, accuracy, score, leaderboard position, Arbiscan tx link, "Play Again"
+9. **Competition Ended** - Auto-settle triggered, then new round starts
 
 ## Implementation Phases
 
@@ -191,15 +234,15 @@ interface TypingResult {
 - [x] Foundry project setup
 - [x] AgoRace contract with signup model
 - [x] Mock AUSD token for testnet
-- [x] Comprehensive test suite
-- [x] Deploy to Arbitrum Sepolia (using deploy-framework)
+- [x] Comprehensive test suite (23 tests, fork-based against Arbitrum Sepolia)
+- [x] Deploy to Arbitrum Sepolia
 - [x] Next.js 14 app scaffold (in `frontend/`)
 - [x] Porto integration for wallet connection
 - [x] Basic typing UI (passage display, input, timer, live WPM/accuracy)
 - [x] Score calculation (client-side)
 - [x] Signup flow (approve + signup with loading states)
 - [x] Server endpoint to submit attempts (POST /api/submit-attempt)
-- [x] Basic leaderboard (polling from contract)
+- [x] Basic leaderboard (polling from contract, 15s interval)
 - [x] Redeploy contract with MockAUSD
 - [x] Start competition + test signups
 
@@ -213,7 +256,6 @@ interface TypingResult {
 ### Phase 1.6: Porto Compatibility (EIP-2612 Permit)
 - [x] Replace EIP-3009 with EIP-2612 permit + safeTransferFrom
 - [x] Simplify submitAttempt to 2 params (player, score)
-- [x] One-time infinite approval via permit (better UX)
 - [x] Frontend: useApprove + useAllowance hooks
 - [x] API route: simplified submitAttempt (no permit)
 - [x] Redeploy contract (v3.0.0)
@@ -222,52 +264,70 @@ interface TypingResult {
 - [x] Switch from `Mode.relay()` to dialog mode (Porto's default)
 - [x] Simplify ConnectButton — dialog handles create-vs-sign-in UI
 - [x] Add CORS + Private Network Access headers to merchant route
-- [ ] **Merchant sponsoring via dialog mode** — blocked by Chrome PNA (see TODO.md session 2026-02-16)
+- [ ] **Merchant sponsoring via dialog mode** — blocked by Chrome PNA in local dev (see Known Issues)
   - Workaround: Porto's built-in Faucet button for approval tx gas
   - Expected to work in production (non-localhost merchant URL)
 
-### Phase 2: Production Ready
-- [ ] Proper error handling + loading states
-- [ ] Transaction status feedback
-- [ ] Better typing UX (character highlighting, error indication)
-- [ ] Countdown timer to competition end
-- [ ] Event indexing for faster leaderboard (or subgraph)
-- [ ] Admin UI for starting/settling competitions
-- [ ] Gas estimation and operator balance monitoring
+### Phase 1.8: Production UX + Admin Controls
+- [x] Upgrade contract to v3.1.0 with admin controls
+  - `startCompetition()` supports restart with pot refund
+  - `adminSetScore()` for restoring scores after restart
+  - `setOperator()` for operator rotation
+- [x] Use exact-amount approval instead of infinite allowance
+- [x] Auto-settlement: frontend auto-settles expired competitions on first visit
+- [x] Settlement + new round start in single flow (`/api/settle`)
+- [x] AUSD faucet endpoint for testnet (`/api/faucet`)
+- [x] Multiple typing passages with per-attempt randomization
+- [x] Per-character highlighting (green correct, red error, cursor position)
+- [x] Anti-cheat: paste/drop/copy prevention, Ctrl+Z exploit fix (textarea remount)
+- [x] Countdown timer with animated ticks
+- [x] Error handling + loading states across all flows
+- [x] Transaction feedback with Arbiscan links
+- [x] Score reveal animation with "New Personal Best!" badge
+- [x] Staggered leaderboard entry animations
+- [x] Mobile responsive design (responsive grid, text scaling, adaptive layouts)
+- [x] Remove private submodule dependencies (vendor Erc1967Implementation + VmHelper)
+- [x] CI/CD: GitHub Actions with lint + fork-based tests (free public RPC)
 
-### Phase 3: Polish
-- [ ] Mobile responsive design
-- [ ] Animations (score reveal, leaderboard updates)
+### Future Ideas
 - [ ] Social sharing (Twitter card with score)
 - [ ] Historical competitions view
 - [ ] Player profiles (total attempts, best scores across competitions)
-- [ ] Keystroke recording for anti-cheat audits (future)
+- [ ] Keystroke recording for server-side replay verification
+- [ ] Event indexing for faster leaderboard (subgraph)
+- [ ] Merkle proof settlement for historical verification
+- [ ] Multiple concurrent competitions
+- [ ] Prize tiers (top 3 split: 60% / 30% / 10%)
 
 ## Deployed Contracts (Arbitrum Sepolia)
 
 | Contract | Address |
 |----------|---------|
-| AgoRaceProxy | `0x5e3b4d6B110428E716DE572786Ed85d301bdd93a` |
-| AgoRaceImpl | `0x60fC94Ee5efa8FAFF8c8Cd163f45Af19E6316a05` |
-| AgoRaceProxyAdmin | `0xEa1447B8D41474eE4BDfF1C1fAa80Fb5C9F8e958` |
-| AUSD (AgoraDollar) | `0xa9012a055bd4e0edff8ce09f960291c09d5322dc` |
-| AUSD Role Holder | `0x99B0E95Fa8F5C3b86e4d78ED715B475cFCcf6E97` |
+| AgoRace (Proxy) | [`0x5e3b4d6B110428E716DE572786Ed85d301bdd93a`](https://sepolia.arbiscan.io/address/0x5e3b4d6B110428E716DE572786Ed85d301bdd93a) |
+| AgoRace (Impl v3.1.0) | [`0x60fC94Ee5efa8FAFF8c8Cd163f45Af19E6316a05`](https://sepolia.arbiscan.io/address/0x60fC94Ee5efa8FAFF8c8Cd163f45Af19E6316a05) |
+| AgoRaceProxyAdmin | [`0xEa1447B8D41474eE4BDfF1C1fAa80Fb5C9F8e958`](https://sepolia.arbiscan.io/address/0xEa1447B8D41474eE4BDfF1C1fAa80Fb5C9F8e958) |
+| AUSD (AgoraDollar) | [`0xa9012a055bd4e0edff8ce09f960291c09d5322dc`](https://sepolia.arbiscan.io/address/0xa9012a055bd4e0edff8ce09f960291c09d5322dc) |
 
 **Deployment Details:**
 - Chain ID: 421614 (Arbitrum Sepolia)
 - Owner/Operator: `0xb07eFD484Baf4E53767da2C00dd31D61840496a7`
-- Block Explorer: `https://sepolia.arbiscan.io`
+- Block Explorer: https://sepolia.arbiscan.io
 
 ## Environment Variables
 
 See `.env.example` and `SETUP.md` for full configuration.
 
 ```bash
-# Key variables
-RPC_API_ENDPOINT=<alchemy_api_key>
-SERVER_ADDRESS=0xb07eFD484Baf4E53767da2C00dd31D61840496a7
+# Foundry (fork tests)
+ARBITRUM_SEPOLIA_RPC_URL=https://arb-sepolia.g.alchemy.com/v2/<API_KEY>
+
+# Server (operator wallet)
 SERVER_PK=<private_key>
-NEXT_PUBLIC_CHAIN_ID=421614  # Arbitrum Sepolia
+
+# Frontend (in frontend/.env.local)
+NEXT_PUBLIC_CHAIN_ID=421614
+NEXT_PUBLIC_AGORACE_ADDRESS=0x5e3b4d6B110428E716DE572786Ed85d301bdd93a
+NEXT_PUBLIC_AUSD_ADDRESS=0xa9012a055bd4e0edff8ce09f960291c09d5322dc
 ```
 
 ## Gas Costs (Estimated)
@@ -276,6 +336,8 @@ NEXT_PUBLIC_CHAIN_ID=421614  # Arbitrum Sepolia
 |-----------|-----|---------------------|
 | submitAttempt() | ~100k | ~$0.002 |
 | settle() | ~100k + 20k/player | ~$0.01-0.05 |
+| startCompetition() | ~80k | ~$0.001 |
+| adminSetScore() | ~60k | ~$0.001 |
 
 **Operator cost per competition:**
 - 100 attempts = ~$0.20 in gas (approve is user-side via Porto)
@@ -296,13 +358,17 @@ Porto's dialog mode runs in an iframe hosted at `https://id.porto.sh`. When the 
 
 **Current workaround:** Porto's built-in Faucet button in the dialog UI funds the approval transaction gas. The merchant endpoint code is in place and functional (tested via curl) — it's only blocked by Chrome's PNA in local dev.
 
-**Production:** This is a localhost-only problem. When deployed to a public domain (e.g., Vercel), the merchant endpoint will be at `https://agorace.example.com/api/porto/merchant`, which is a public-to-public request — no PNA restriction.
+**Production:** This is a localhost-only problem. When deployed to a public domain (e.g., Vercel), the merchant endpoint will be at a public URL — no PNA restriction.
 
-**Previously tried relay mode** (`Mode.relay()`): The merchant endpoint worked in relay mode (relay routes the request differently), but relay mode doesn't persist accounts in the browser — every page reload disconnects the wallet. Dialog mode was chosen for persistence.
+### Client-Side Scoring
+
+Scores are calculated entirely client-side. A motivated attacker could submit fabricated scores via the API. For a testnet demo this is acceptable, but a production version would need:
+- Server-side keystroke replay verification, or
+- On-chain keystroke recording with hash commitments
 
 ## Future Considerations
 
-### Anti-Cheat (Phase 3+)
+### Anti-Cheat (Server-Side Replay)
 - Record all keystrokes with timestamps
 - Server replays and verifies score matches
 - Store keystroke hash on-chain for audit trail

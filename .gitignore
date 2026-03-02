@@ -37,3 +37,7 @@ lcov.info
 # Logs
 *.log
 npm-debug.log*
+
+# Personal notes
+TODO.md
+kvothe.md

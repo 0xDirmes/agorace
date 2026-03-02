@@ -86,7 +86,7 @@ All contracts are deployed on **Arbitrum Sepolia** (chain ID: 421614).
 ### Frontend
 
 ```bash
-git clone https://github.com/0xDirmes/agora-type.git
+git clone https://github.com/0xDirmes/agorace.git
 cd agora-type/frontend
 npm install
 

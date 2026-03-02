@@ -6,6 +6,10 @@ AgoRace is a **weekly on-chain typing competition** built on Arbitrum Sepolia. P
 
 > **Status:** Beta on Arbitrum Sepolia (testnet). Not audited. Do not use production funds.
 
+![Home screen — leaderboard and prize pool](docs/screenshots/home.png)
+
+![Typing game — live WPM, accuracy, and score](docs/screenshots/typing.png)
+
 ## How It Works
 
 1. **Connect** — Sign in with a passkey (Face ID, fingerprint) via [Porto](https://porto.sh). No browser extension needed.

@@ -14,7 +14,7 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-const siteUrl = "https://agora-type.vercel.app";
+const siteUrl = "https://agorace.vercel.app";
 
 export const metadata: Metadata = {
   title: "AgoRace - Type Fast. Cash Out.",
@@ -28,13 +28,22 @@ export const metadata: Metadata = {
     url: siteUrl,
     siteName: "AgoRace",
     type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "AgoRace by 0xDirmes",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "AgoRace - Type Fast. Cash Out.",
     description:
       "Weekly typing competition with on-chain prize pool. Pay 1 AUSD per attempt — the fastest typist takes the entire pot.",
     creator: "@Dirmes1",
+    images: ["/og-image.png"],
   },
 };
 
